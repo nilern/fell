@@ -1,5 +1,7 @@
 (ns fell.core
-  (:require [cats.protocols :refer [Contextual Extract -extract Context Monad]]))
+  #?(:clj (:refer-clojure :exclude [send]))
+  (:require [cats.protocols :refer [Contextual Extract -extract Context Monad]]
+            [cats.core :refer [return bind]]))
 
 (defn- singleton-queue [v]
   #?(:clj  (conj clojure.lang.PersistentQueue/EMPTY v)
@@ -26,7 +28,7 @@
     (-mreturn [_ v] (Pure. v))
     (-mbind [_ mv f]
       (condp instance? mv
-        Pure   (f (-extract mv))
+        Pure (f (-extract mv))
         Impure (Impure. (.-request mv) (conj (.-cont mv) f))))))
 
 (defn- apply-queue [queue v]
@@ -34,7 +36,7 @@
         queue* (pop queue)]
     (if (seq queue*)
       (condp instance? mv
-        Pure   (recur queue* (-extract mv))
+        Pure (recur queue* (-extract mv))
         Impure (Impure. (.-request mv) (into (.-cont mv) queue*)))
       mv)))
 
@@ -46,7 +48,7 @@
 
 (defn handle-relay [can-handle? ret handle mv]
   (condp instance? mv
-    Pure   (ret (-extract mv))
+    Pure (ret (-extract mv))
     Impure (let [request (.-request mv)
                  cont (append-handler (.-cont mv)
                                       (partial handle-relay can-handle? ret handle))]
@@ -54,13 +56,13 @@
                (handle request cont)
                (Impure. request (singleton-queue cont))))))
 
-(defn run-reader [mv ctx]
-  (handle-relay #(= (first %) :reader/get) ->Pure (fn [[_] cont] (cont ctx)) mv))
+(defn run-reader [mv env]
+  (handle-relay #(= (first %) :reader/get) ->Pure (fn [[_] cont] (cont env)) mv))
 
 (defn state-runner [label]
   (fn run-state [mv domain-state]
     (condp instance? mv
-      Pure   (Pure. [(-extract mv) domain-state])
+      Pure (Pure. [(-extract mv) domain-state])
       Impure (let [[tag subtag state* :as request] (.-request mv)
                    make-cont (fn [domain-state]
                                (append-handler (.-cont mv) #(run-state % domain-state)))]
@@ -69,5 +71,14 @@
                    :get ((make-cont domain-state) domain-state)
                    :set ((make-cont state*) nil))
                  (Impure. request (singleton-queue (make-cont domain-state))))))))
+
+(defn lift [mv] (send [:lift/lift mv]))
+
+(defn run-lift [ctx freer]
+  (condp instance? freer
+    Pure (return ctx (-extract freer))
+    Impure (let [[tag mv] (.-request freer)]
+             (case tag
+               :lift/lift (bind mv (append-handler (.-cont freer) #(run-lift ctx %)))))))
 
 (def run -extract)

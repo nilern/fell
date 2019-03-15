@@ -9,6 +9,7 @@ Don't.
 
 ```clojure
 (ns fell.example
+  (:refer-clojure :exclude [send])
   (:require [fell.core :refer [send state-runner run-reader run]]
             [cats.core :refer [mlet return]]))
 

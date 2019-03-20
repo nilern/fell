@@ -53,6 +53,10 @@
         Pure (f (-extract mv))
         Impure (Impure. (.-request mv) (conj (.-cont mv) f))))))
 
+(defn default-queue? [queue]
+  (and (= (count queue) 1)
+       (identical? (peek queue) ->Pure)))
+
 (defn- apply-queue [queue v]
   (let [mv ((peek queue) v)
         queue* (pop queue)]

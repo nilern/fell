@@ -1,11 +1,8 @@
 (ns fell.core
   #?(:clj (:refer-clojure :exclude [send]))
   (:require [cats.protocols :refer [Contextual Extract -extract Context Monad]]
-            [cats.core :refer [return bind]]))
-
-(defn- singleton-queue [v]
-  #?(:clj  (conj clojure.lang.PersistentQueue/EMPTY v)
-     :cljs #queue [v]))
+            [cats.core :refer [return bind]]
+            [fell.util :refer [singleton-queue]]))
 
 (defprotocol HandleRelay
   (-handle-relay [freer can-handle? ret handle]))

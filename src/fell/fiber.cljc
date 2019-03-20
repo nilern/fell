@@ -1,18 +1,36 @@
 (ns fell.fiber
-  (:require [fell.core :refer [->Pure run]]
-            [fell.delimc :refer [reset0 shift0]]))
+  #?(:clj (:refer-clojure :exclude [send]))
+  (:require [fell.core :refer [append-handler send run]]
+            [fell.util :refer [singleton-queue]])
+  (:import [fell.core Pure Impure]))
 
-;; ((() -> Eff r a) -> Eff r a) -> Eff (Delimc | r) a
-(def suspend shift0)
+;; ((() -> Eff (Fiber | r) a) -> Eff (Fiber | r) b) -> Eff (Fiber | r) ()
+(defn suspend [f] (send [::suspend f]))
 
-;; Eff Delimc a -> ()
-(defn schedule [eff]
-  #?(:clj (future (run (reset0 eff)))
-     :cljs (.requestIdleCallback js/window (fn [_] (run (reset0 eff)))))
+;; (() -> a) -> Eff (Fiber | r) ()
+(defn schedule [thunk] (send [::schedule thunk]))
+
+;; (() -> a) -> ()
+(defn schedule! [thunk]
+  #?(:clj  (future-call thunk)
+     :cljs (.requestIdleCallback js/window (fn [_] (thunk))))
   nil)
 
-;; Eff Delimc a -> Eff r' ()
+;; Eff (Fiber | r) a => Eff r a
+(defn run-fibers [eff]
+  (condp instance? eff
+    Pure eff
+    Impure (let [request (.-request eff)
+                 [tag & args] request]
+             (case tag
+               ::suspend (let [[f] args]
+                           (recur (f (append-handler (.-cont eff) run-fibers))))
+               ::schedule (let [[thunk] args]
+                            (Pure. (schedule! thunk)))
+               (Impure. request (singleton-queue (append-handler (.-cont eff) run-fibers)))))))
+
+;; (() -> a) -> Eff (Fiber | r) ()
 (def spawn schedule)
 
-;; Eff (Delimc | r) ()
-(def yield (suspend (fn [k] (->Pure (schedule (k nil))))))
+;; Eff (Fiber | r) ()
+(def yield (suspend (fn [k] (schedule (fn [] (run (k nil)))))))

@@ -1,8 +1,5 @@
-(ns fell.cml)
-
-(def ^:private empty-queue
-  #?(:clj  clojure.lang.PersistentQueue/EMPTY
-     :cljs #queue []))
+(ns fell.cml
+  (:require [fell.queue :refer [empty-queue]]))
 
 (defn- cas!
   "Compare-and-swap; iff `@atom` is `old`, [[reset!]] it to `new`. Return `@atom`."

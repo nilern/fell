@@ -1,14 +1,13 @@
 (ns fell.fiber
-  #?(:clj (:refer-clojure :exclude [send]))
-  (:require [fell.core :refer [append-handler send run]]
-            [fell.util :refer [singleton-queue]])
+  (:require [fell.core :refer [pure impure append-handler request-eff run]]
+            [fell.queue :refer [singleton-queue]])
   (:import [fell.core Pure Impure]))
 
 ;; ((() -> Eff (Fiber | r) a) -> Eff (Fiber | r) b) -> Eff (Fiber | r) ()
-(defn suspend [f] (send [::suspend f]))
+(defn suspend [f] (request-eff [::suspend f]))
 
 ;; (() -> a) -> Eff (Fiber | r) ()
-(defn schedule [thunk] (send [::schedule thunk]))
+(defn schedule [thunk] (request-eff [::schedule thunk]))
 
 ;; (() -> a) -> ()
 (defn schedule! [thunk]
@@ -26,8 +25,8 @@
                ::suspend (let [[f] args]
                            (recur (f (append-handler (.-cont eff) run-fibers))))
                ::schedule (let [[thunk] args]
-                            (Pure. (schedule! thunk)))
-               (Impure. request (singleton-queue (append-handler (.-cont eff) run-fibers)))))))
+                            (pure (schedule! thunk)))
+               (impure request (singleton-queue (append-handler (.-cont eff) run-fibers)))))))
 
 ;; (() -> a) -> Eff (Fiber | r) ()
 (def spawn schedule)

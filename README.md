@@ -9,21 +9,22 @@ Don't.
 
 ```clojure
 (ns fell.example
-  (:refer-clojure :exclude [send])
-  (:require [fell.core :refer [send state-runner run-reader run]]
-            [cats.core :refer [mlet return]]))
+  (:require [cats.core :refer [mlet return]]
+            [fell.core :refer [request-eff run]]
+            [fell.reader :refer [ask run-reader]]
+            [fell.state :refer [state-runner]]))
 
 (def run-counter (state-runner :counter-state))
 
 (def run-status (state-runner :status-state))
 
 (def stateful-computation
-  (mlet [initial-status (send [:status-state :get])
-         counter (send [:counter-state :get])
-         increment (send [:reader/get])
-         _ (send [:counter-state :set (+ counter increment)])
-         counter* (send [:counter-state :get])
-         _ (send [:status-state :set (str "Energy: " counter)])]
+  (mlet [initial-status (request-eff [:status-state :get])
+         counter (request-eff [:counter-state :get])
+         increment ask
+         _ (request-eff [:counter-state :set (+ counter increment)])
+         counter* (request-eff [:counter-state :get])
+         _ (request-eff [:status-state :set (str "Energy: " counter)])]
     (return initial-status)))
 
 (-> stateful-computation

@@ -1,21 +1,21 @@
 (ns fell.trampoline
   #?(:clj (:refer-clojure :exclude [send]))
-  (:require [fell.core :refer [default-queue? append-handler send run]]
-            [fell.util :refer [singleton-queue]])
+  (:require [fell.core :refer [default-queue? append-handler request-eff run]]
+            [fell.queue :refer [singleton-queue]])
   (:import [fell.core Pure Impure]))
 
 (def ^:private tail-position? default-queue?)
 
-(defn tail-call [& args] (send (into [::tail-call] args)))
+(defn tail-call [& args] (request-eff (into [::tail-call] args)))
 
-(defn tail-apply [& args] (send (into [::tail-apply] args)))
+(defn tail-apply [& args] (request-eff (into [::tail-apply] args)))
 
 ;; Eff (Trampoline | r) a -> Eff r a
 (defn mtrampoline [eff]
   (condp instance? eff
     Pure eff
-    Impure (let [request (.-request eff)
-                 [tag & args] request]
+    Impure (let [request-eff (.-request eff)
+                 [tag & args] request-eff]
              (case tag
                ::tail-call (let [[f & args] args]
                              (assert (tail-position? (.-cont eff)))
@@ -23,11 +23,11 @@
                ::tail-apply (let [[f & args] args]
                               (assert (tail-position? (.-cont eff)))
                               (recur (apply apply f args))) ; WAT
-               (Impure. request (singleton-queue (append-handler (.-cont eff) mtrampoline)))))))
+               (Impure. request-eff (singleton-queue (append-handler (.-cont eff) mtrampoline)))))))
 
 (defmacro mloop [bindings & body]
   (let [params (take-nth 2 bindings)
         args (take-nth 2 (rest bindings))]
     `(letfn [(luup# [~@params] ~@body)
-             (~'mrecur [& rec-args#] (tail-apply luup# rec-args#))]
+             (~'mrecur [~@params] (tail-call luup# ~@params))]
        (mtrampoline (luup# ~@args)))))

@@ -1,46 +1,24 @@
 (ns fell.core
-  #?(:clj (:refer-clojure :exclude [send]))
-  (:require [cats.protocols :refer [Contextual Extract -extract Context Monad]]
-            [cats.core :refer [return bind]]
-            [fell.util :refer [singleton-queue]]))
+  (:require [cats.core :refer [extract]]
+            [cats.protocols :refer [Contextual Extract Context Monad]]
+            [fell.queue :refer [singleton-queue]]))
 
-(defprotocol HandleRelay
-  (-handle-relay [freer can-handle? ret handle]))
-
-(defprotocol Lift
-  (-run-lift [freer ctx]))
-
-(declare context append-handler)
+(declare context)
 
 (deftype Pure [v]
   Contextual
   (-get-context [_] context)
 
   Extract
-  (-extract [_] v)
+  (-extract [_] v))
 
-  HandleRelay
-  (-handle-relay [_ _can-handle? ret _handle] (ret v))
-
-  Lift
-  (-run-lift [_ ctx] (return ctx v)))
+(def pure ->Pure)
 
 (deftype Impure [request cont]
   Contextual
-  (-get-context [_] context)
+  (-get-context [_] context))
 
-  HandleRelay
-  (-handle-relay [_ can-handle? ret handle]
-    (let [cont (append-handler cont #(-handle-relay % can-handle? ret handle))]
-      (if (can-handle? request)
-        (handle request cont)
-        (Impure. request (singleton-queue cont)))))
-
-  Lift
-  (-run-lift [_ ctx]
-    (let [[tag mv] request]
-      (case tag
-        :lift/lift (bind mv (append-handler cont #(-run-lift % ctx)))))))
+(def impure ->Impure)
 
 (def context
   (reify
@@ -50,8 +28,8 @@
     (-mreturn [_ v] (Pure. v))
     (-mbind [_ mv f]
       (condp instance? mv
-        Pure (f (-extract mv))
-        Impure (Impure. (.-request mv) (conj (.-cont mv) f))))))
+        Pure (f (extract mv))
+        Impure (impure (.-request mv) (conj (.-cont mv) f))))))
 
 (defn default-queue? [queue]
   (and (= (count queue) 1)
@@ -62,37 +40,24 @@
         queue* (pop queue)]
     (if (seq queue*)
       (condp instance? mv
-        Pure (recur queue* (-extract mv))
-        Impure (Impure. (.-request mv) (into (.-cont mv) queue*)))
+        Pure (recur queue* (extract mv))
+        Impure (impure (.-request mv) (into (.-cont mv) queue*)))
       mv)))
 
 (defn append-handler [queue handle]
   (comp handle (partial apply-queue queue)))
 
-(defn send [request]
-  (Impure. request (singleton-queue ->Pure)))
+(defn request-eff [request-eff]
+  (Impure. request-eff (singleton-queue ->Pure)))
 
-(defn handle-relay [can-handle? ret handle freer]
-  (-handle-relay freer can-handle? ret handle))
+(defn handle-relay [can-handle? ret handle eff]
+  (condp instance? eff
+    Pure (ret (extract eff))
+    Impure (let [request (.-request eff)
+                 cont (.-cont eff)
+                 cont (append-handler cont (partial handle-relay can-handle? ret handle))]
+             (if (can-handle? request)
+               (handle request cont)
+               (impure request (singleton-queue cont))))))
 
-(defn run-reader [mv env]
-  (handle-relay #(= (first %) :reader/get) ->Pure (fn [[_] cont] (cont env)) mv))
-
-(defn state-runner [label]
-  (fn run-state [mv domain-state]
-    (condp instance? mv
-      Pure (Pure. [(-extract mv) domain-state])
-      Impure (let [[tag subtag state* :as request] (.-request mv)
-                   make-cont (fn [domain-state]
-                               (append-handler (.-cont mv) #(run-state % domain-state)))]
-               (if (= tag label)
-                 (case subtag
-                   :get ((make-cont domain-state) domain-state)
-                   :set ((make-cont state*) nil))
-                 (Impure. request (singleton-queue (make-cont domain-state))))))))
-
-(defn lift [mv] (send [:lift/lift mv]))
-
-(defn run-lift [ctx freer] (-run-lift freer ctx))
-
-(def run -extract)
+(def run extract)

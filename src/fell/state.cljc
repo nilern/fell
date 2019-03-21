@@ -1,18 +1,20 @@
 (ns fell.state
   (:require [cats.core :refer [extract]]
-            [fell.core :refer [pure impure append-handler]]
+            [fell.core :refer [pure impure bounce append-handler]]
             [fell.queue :refer [singleton-queue]])
-  (:import [fell.core Pure Impure]))
+  (:import [fell.core Pure Impure Bounce]))
 
 (defn state-runner [label]
-  (fn run-state [mv domain-state]
-    (condp instance? mv
-      Pure (pure [(extract mv) domain-state])
-      Impure (let [[tag subtag state* :as request] (.-request mv)
-                   make-cont (fn [domain-state]
-                               (append-handler (.-cont mv) #(run-state % domain-state)))]
+  (fn run-state [eff state]
+    (condp instance? eff
+      Pure (pure [(extract eff) state])
+      Impure (let [[tag subtag state* :as request] (.-request eff)
+                   make-cont (fn [state] (append-handler (.-cont eff) #(run-state % state)))]
                (if (= tag label)
                  (case subtag
-                   :get ((make-cont domain-state) domain-state)
-                   :set ((make-cont state*) nil))
-                 (impure request (singleton-queue (make-cont domain-state))))))))
+                   :get (let [cont (make-cont state)]
+                          (bounce #(cont state)))
+                   :set (let [cont (make-cont state*)]
+                          (bounce #(cont nil))))
+                 (impure request (singleton-queue (make-cont state)))))
+      Bounce (Bounce. (.-thunk eff) (.-cont eff) (conj (.-handlers eff) #(run-state % state))))))

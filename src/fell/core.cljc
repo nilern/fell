@@ -1,7 +1,10 @@
 (ns fell.core
-  (:require [cats.core :refer [extract]]
+  (:require [cats.core :refer [bind extract]]
             [cats.protocols :refer [Contextual Extract Context Monad]]
             [fell.queue :refer [singleton-queue]]))
+
+(defprotocol FlatMap
+  (-flat-map [mv f]))
 
 (declare context)
 
@@ -10,15 +13,31 @@
   (-get-context [_] context)
 
   Extract
-  (-extract [_] v))
+  (-extract [_] v)
+
+  FlatMap
+  (-flat-map [_ f] (f v)))
 
 (def pure ->Pure)
 
 (deftype Impure [request cont]
   Contextual
-  (-get-context [_] context))
+  (-get-context [_] context)
+
+  FlatMap
+  (-flat-map [_ f] (Impure. request (conj cont f))))
 
 (def impure ->Impure)
+
+(deftype Bounce [thunk cont handlers]
+  Contextual
+  (-get-context [_] context)
+
+  FlatMap
+  (-flat-map [_ f] (Bounce. thunk (conj cont f) handlers)))
+
+(defn bounce [thunk]
+  (Bounce. thunk (singleton-queue pure) []))
 
 (def context
   (reify
@@ -26,29 +45,27 @@
 
     Monad
     (-mreturn [_ v] (Pure. v))
-    (-mbind [_ mv f]
-      (condp instance? mv
-        Pure (f (extract mv))
-        Impure (impure (.-request mv) (conj (.-cont mv) f))))))
+    (-mbind [_ mv f] (-flat-map mv f))))
 
 (defn default-queue? [queue]
   (and (= (count queue) 1)
-       (identical? (peek queue) ->Pure)))
+       (identical? (peek queue) pure)))
 
 (defn- apply-queue [queue v]
-  (let [mv ((peek queue) v)
+  (let [eff ((peek queue) v)
         queue* (pop queue)]
     (if (seq queue*)
-      (condp instance? mv
-        Pure (recur queue* (extract mv))
-        Impure (impure (.-request mv) (into (.-cont mv) queue*)))
-      mv)))
+      (condp instance? eff
+        Pure (recur queue* (extract eff))
+        Impure (impure (.-request eff) (into (.-cont eff) queue*))
+        Bounce (Bounce. (.-thunk eff) (.-handlers eff) (into (.-cont eff) queue*)))
+      eff)))
 
 (defn append-handler [queue handle]
   (comp handle (partial apply-queue queue)))
 
 (defn request-eff [request-eff]
-  (Impure. request-eff (singleton-queue ->Pure)))
+  (Impure. request-eff (singleton-queue pure)))
 
 (defn handle-relay [can-handle? ret handle eff]
   (condp instance? eff
@@ -57,7 +74,16 @@
                  cont (.-cont eff)
                  cont (append-handler cont (partial handle-relay can-handle? ret handle))]
              (if (can-handle? request)
-               (handle request cont)
-               (impure request (singleton-queue cont))))))
+               (bounce #(handle request cont))
+               (impure request (singleton-queue cont))))
+    Bounce (Bounce. (.-thunk eff) (.-cont eff)
+                    (conj (.-handlers eff) (partial handle-relay can-handle? ret handle)))))
 
-(def run extract)
+(defn run [eff]
+  (condp instance? eff
+    Pure (extract eff)
+    Impure (throw (#?(:clj RuntimeException., :cljs Error.) (str "unhandled effect " (pr-str (.-request eff)))))
+    ;; FIXME: Probably not even correct and seems to make GC scream on all cores:
+    Bounce (let [eff* (reduce bind ((.-thunk eff)) (.-cont eff))
+                 eff* (reduce (fn [eff handler] (handler eff)) eff* (.-handlers eff))]
+             (recur eff*))))

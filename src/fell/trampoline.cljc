@@ -1,8 +1,8 @@
 (ns fell.trampoline
   #?(:clj (:refer-clojure :exclude [send]))
-  (:require [fell.core :refer [default-queue? append-handler request-eff run]]
+  (:require [fell.core :refer [default-queue? append-handler request-eff eff-trampoline run]]
             [fell.queue :refer [singleton-queue]])
-  (:import [fell.core Pure Impure]))
+  (:import [fell.core Pure Impure Bounce]))
 
 (def ^:private tail-position? default-queue?)
 
@@ -23,7 +23,8 @@
                ::tail-apply (let [[f & args] args]
                               (assert (tail-position? (.-cont eff)))
                               (recur (apply apply f args))) ; WAT
-               (Impure. request-eff (singleton-queue (append-handler (.-cont eff) mtrampoline)))))))
+               (Impure. request-eff (singleton-queue (append-handler (.-cont eff) mtrampoline)))))
+    Bounce (recur (eff-trampoline eff))))
 
 (defmacro mloop [bindings & body]
   (let [params (take-nth 2 bindings)

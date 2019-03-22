@@ -1,6 +1,6 @@
 (ns fell.state
   (:require [cats.core :refer [extract]]
-            [fell.core :refer [pure impure bounce append-handler]]
+            [fell.core :refer [pure impure bounce eff-trampoline append-handler]]
             [fell.queue :refer [singleton-queue]])
   (:import [fell.core Pure Impure Bounce]))
 
@@ -13,8 +13,8 @@
                (if (= tag label)
                  (case subtag
                    :get (let [cont (make-cont state)]
-                          (bounce #(cont state)))
+                          (bounce cont state))
                    :set (let [cont (make-cont state*)]
-                          (bounce #(cont nil))))
+                          (bounce cont nil)))
                  (impure request (singleton-queue (make-cont state)))))
-      Bounce (Bounce. (.-thunk eff) (.-cont eff) (conj (.-handlers eff) #(run-state % state))))))
+      Bounce (recur (eff-trampoline eff) state))))

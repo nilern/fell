@@ -1,5 +1,5 @@
 (ns fell.core
-  (:require [cats.core :refer [bind extract]]
+  (:require [cats.core :refer [extract]]
             [cats.protocols :refer [Contextual Extract Context Monad]]
             [fell.queue :refer [singleton-queue]]))
 
@@ -29,15 +29,22 @@
 
 (def impure ->Impure)
 
-(deftype Bounce [thunk cont handlers]
+(declare eff-trampoline)
+
+(deftype Bounce [callee args]
   Contextual
   (-get-context [_] context)
 
   FlatMap
-  (-flat-map [_ f] (Bounce. thunk (conj cont f) handlers)))
+  (-flat-map [self f] (-flat-map (eff-trampoline self) f)))
 
-(defn bounce [thunk]
-  (Bounce. thunk (singleton-queue pure) []))
+(defn bounce [f & args]
+  (Bounce. f args))
+
+(defn eff-trampoline [eff]
+  (if (instance? Bounce eff)
+    (recur (apply (.-callee eff) (.-args eff)))
+    eff))
 
 (def context
   (reify
@@ -58,7 +65,11 @@
       (condp instance? eff
         Pure (recur queue* (extract eff))
         Impure (impure (.-request eff) (into (.-cont eff) queue*))
-        Bounce (Bounce. (.-thunk eff) (.-handlers eff) (into (.-cont eff) queue*)))
+        Bounce (let [eff (eff-trampoline eff)]
+                 ;; TODO: DRY
+                 (condp instance? eff
+                   Pure (recur queue* (extract eff))
+                   Impure (impure (.-request eff) (into (.-cont eff) queue*)))))
       eff)))
 
 (defn append-handler [queue handle]
@@ -74,16 +85,12 @@
                  cont (.-cont eff)
                  cont (append-handler cont (partial handle-relay can-handle? ret handle))]
              (if (can-handle? request)
-               (bounce #(handle request cont))
+               (bounce handle request cont)
                (impure request (singleton-queue cont))))
-    Bounce (Bounce. (.-thunk eff) (.-cont eff)
-                    (conj (.-handlers eff) (partial handle-relay can-handle? ret handle)))))
+    Bounce (recur can-handle? ret handle (eff-trampoline eff))))
 
 (defn run [eff]
   (condp instance? eff
     Pure (extract eff)
     Impure (throw (#?(:clj RuntimeException., :cljs Error.) (str "unhandled effect " (pr-str (.-request eff)))))
-    ;; FIXME: Probably not even correct and seems to make GC scream on all cores:
-    Bounce (let [eff* (reduce bind ((.-thunk eff)) (.-cont eff))
-                 eff* (reduce (fn [eff handler] (handler eff)) eff* (.-handlers eff))]
-             (recur eff*))))
+    Bounce (recur (eff-trampoline eff))))

@@ -4,7 +4,7 @@
             [cats.core :refer [return bind extract]]
             [cats.protocols :refer [-get-context]]
             [fell.core :refer :all]
-            [fell.queue :refer [singleton-queue]])
+            [fell.queue :refer [empty-queue singleton-queue]])
   (:import [fell.core Pure]))
 
 (deftest get-context-test
@@ -48,3 +48,25 @@
     (testing "bounce"
       (let [eff (bind (bounce pure 23) return)]
         (is (= (.-v eff) 23))))))
+
+(deftest default-queue?-test
+  (is (default-queue? (singleton-queue pure)))
+  (is (not (default-queue? empty-queue)))
+  (is (not (default-queue? (conj (singleton-queue pure) pure))))
+  (is (not (default-queue? (singleton-queue return)))))
+
+(deftest request-eff-test
+  (let [eff (request-eff [::foo 23])]
+    (is (= (.-request eff) [::foo 23]))
+    (is (default-queue? (.-cont eff)))))
+
+(deftest run-test
+  (testing "pure"
+    (is (= (run (pure 23)) 23)))
+
+  (testing "impure"
+    (is (thrown? RuntimeException (run (request-eff [::foo 23])))))
+
+  (testing "bounce"
+    (is (= (run (bounce pure 23)) 23))
+    (is (thrown? RuntimeException (run (bounce request-eff [::foo 23]))))))

@@ -122,5 +122,5 @@
   [eff]
   (condp instance? eff
     Pure (extract eff)
-    Impure (throw (#?(:clj RuntimeException., :cljs Error.) (str "unhandled effect " (pr-str (.-request eff)))))
+    Impure (throw (#?(:clj RuntimeException., :cljs js/Error.) (str "unhandled effect " (pr-str (.-request eff)))))
     Bounce (recur (eff-trampoline eff))))

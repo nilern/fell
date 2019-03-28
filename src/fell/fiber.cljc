@@ -1,7 +1,8 @@
 (ns fell.fiber
-  (:require [fell.core :refer [pure impure append-handler request-eff eff-trampoline run]]
+  (:require [fell.core :refer [pure impure append-handler request-eff eff-trampoline run
+                               #?@(:cljs [Pure Impure Bounce])]]
             [fell.queue :refer [singleton-queue]])
-  (:import [fell.core Pure Impure Bounce]))
+  #?(:clj (:import [fell.core Pure Impure Bounce])))
 
 ;; ((() -> Eff (Fiber | r) a) -> Eff (Fiber | r) b) -> Eff (Fiber | r) ()
 (defn suspend [f] (request-eff [::suspend f]))

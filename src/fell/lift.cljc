@@ -1,7 +1,8 @@
 (ns fell.lift
   (:require [cats.core :refer [return bind extract]]
-            [fell.core :refer [request-eff append-handler bounce eff-trampoline]])
-  (:import [fell.core Pure Impure Bounce]))
+            [fell.core :refer [request-eff append-handler bounce eff-trampoline
+                               #?@(:cljs [Pure Impure Bounce])]])
+  #?(:clj (:import [fell.core Pure Impure Bounce])))
 
 (defn lift [mv] (request-eff [::lift mv]))
 

@@ -1,8 +1,9 @@
 (ns fell.state
   (:require [cats.core :refer [extract]]
-            [fell.core :refer [pure impure bounce eff-trampoline append-handler]]
+            [fell.core :refer [pure impure bounce eff-trampoline append-handler
+                               #?@(:cljs [Pure Impure Bounce])]]
             [fell.queue :refer [singleton-queue]])
-  (:import [fell.core Pure Impure Bounce]))
+  #?(:clj (:import [fell.core Pure Impure Bounce])))
 
 (defn state-runner [label]
   (fn run-state [eff state]

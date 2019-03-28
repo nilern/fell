@@ -1,8 +1,9 @@
 (ns fell.trampoline
   #?(:clj (:refer-clojure :exclude [send]))
-  (:require [fell.core :refer [default-queue? append-handler request-eff eff-trampoline run]]
+  (:require [fell.core :refer [default-queue? append-handler request-eff eff-trampoline run
+                               #?@(:cljs [Pure Impure Bounce])]]
             [fell.queue :refer [singleton-queue]])
-  (:import [fell.core Pure Impure Bounce]))
+  #?(:clj (:import [fell.core Pure Impure Bounce])))
 
 (def ^:private tail-position? default-queue?)
 

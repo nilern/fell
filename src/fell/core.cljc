@@ -34,7 +34,8 @@
   (-flat-map [_ f] (Impure. request (conj cont f))))
 
 (def impure
-  "Create an Eff from a request and a continuation queue. You mostly only need this when implementing new effects."
+  "Create an Eff from a request and a continuation queue.
+  You mostly only need this when implementing new effects."
   ->Impure)
 
 (declare eff-trampoline)
@@ -70,11 +71,12 @@
   (Impure. request (singleton-queue pure)))
 
 (defn handle-relay
-  "A generic effect handler that calls `(ret (extract eff))` when `eff` has no effects and handles requests where
-  `(= (can-handle? request) true)` with `(bounce handle request cont)`. Using this takes care of the boilerplate where
-  the handler needs to be added to the continuation queue in case the effect being handled will appear again when
-  the continuation is called and also calling [[eff-trampoline]] for [[Bounce]]. However, not every effect handler
-  is simple enough to benefit from this function."
+  "A generic effect handler that calls `(ret (extract eff))` when `eff` has
+  no effects and handles requests tagged with `tag` by calling `(handle request cont)`.
+  Using this takes care of the boilerplate where the handler needs to be
+  added to the continuation queue in case the effect being handled will appear again when
+  the continuation is called. However, not every effect handler is simple enough to be
+  implemented with this function."
   [tag ret handle eff]
   (condp instance? eff
     Pure (ret (extract eff))
@@ -90,4 +92,5 @@
   [eff]
   (condp instance? eff
     Pure (extract eff)
-    Impure (throw (#?(:clj RuntimeException., :cljs js/Error.) (str "unhandled effect " (pr-str (.-request eff)))))))
+    Impure (throw (#?(:clj RuntimeException., :cljs js/Error.)
+                    (str "unhandled effect " (pr-str (.-request eff)))))))

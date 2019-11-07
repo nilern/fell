@@ -12,19 +12,25 @@ Don't.
   (:require [cats.core :refer [mlet return]]
             [fell.core :refer [request-eff run]]
             [fell.reader :refer [ask run-reader]]
-            [fell.state :refer [state-runner]]))
+            [fell.state :as state]))
 
-(def run-counter (state-runner :counter-state))
+(let [{get-counter :get, set-counter :set, run-counter :run} (state/make ::counter)]
+  (def get-counter get-counter)
+  (def set-counter set-counter)
+  (def run-counter run-counter))
 
-(def run-status (state-runner :status-state))
+(let [{get-status :get, set-status :set, run-status :run} (state/make ::status)]
+  (def get-status get-status)
+  (def set-status set-status)
+  (def run-status run-status))
 
 (def stateful-computation
-  (mlet [initial-status (request-eff [:status-state :get])
-         counter (request-eff [:counter-state :get])
+  (mlet [initial-status get-status
+         counter get-counter
          increment ask
-         _ (request-eff [:counter-state :set (+ counter increment)])
-         counter* (request-eff [:counter-state :get])
-         _ (request-eff [:status-state :set (str "Energy: " counter)])]
+         _ (set-counter (+ counter increment))
+         counter* get-counter
+         _ (set-status (str "Energy: " counter))]
     (return initial-status)))
 
 (-> stateful-computation

@@ -1,13 +1,17 @@
 (ns fell.delimc
-  (:require [fell.core :refer [pure request-eff bounce handle-relay]]))
+  (:require [fell.core :refer [pure request-eff handle-relay]]))
 
-;; Eff (Delimc | r) a -> Eff r a
-(defn reset0 [eff]
-  (handle-relay #(= (first %) ::shift0)
-                pure
-                (fn [[_ f] k] (bounce f k))
-                eff))
+(defn make [tag]
+  {:shift0 (fn [f] (request-eff [tag f]))
+   :reset0 (fn [eff]
+             (handle-relay #(= (first %) tag)
+                           pure
+                           (fn [[_ f] k] (f k))
+                           eff))})
 
-;; ((() -> Eff r a) -> Eff r a) -> Eff (Delimc | r) a
-(defn shift0 [f] (request-eff [::shift0 f]))
+(let [{:keys [shift0 reset0]} (make ::shift0)]
+  ;; ((() -> Eff r a) -> Eff r a) -> Eff (Delimc | r) a
+  (def shift0 shift0)
 
+  ;; Eff (Delimc | r) a -> Eff r a
+  (def reset0 reset0))

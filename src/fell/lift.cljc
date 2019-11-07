@@ -1,8 +1,8 @@
 (ns fell.lift
   (:require [cats.core :refer [return bind extract]]
             [fell.core :refer [request-eff append-handler eff-trampoline
-                               #?@(:cljs [Pure Impure Bounce])]])
-  #?(:clj (:import [fell.core Pure Impure Bounce])))
+                               #?@(:cljs [Pure Impure])]])
+  #?(:clj (:import [fell.core Pure Impure])))
 
 (defn lift [mv] (request-eff [::lift mv]))
 
@@ -13,5 +13,4 @@
                  cont (.-cont eff)
                  [tag mv] request]
              (case tag
-               ::lift (bind mv (append-handler cont (partial run-lift ctx)))))
-    Bounce (recur ctx (eff-trampoline eff))))
+               ::lift (bind mv (append-handler cont (partial run-lift ctx)))))))

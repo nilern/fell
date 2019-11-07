@@ -75,13 +75,13 @@
   the handler needs to be added to the continuation queue in case the effect being handled will appear again when
   the continuation is called and also calling [[eff-trampoline]] for [[Bounce]]. However, not every effect handler
   is simple enough to benefit from this function."
-  [can-handle? ret handle eff]
+  [tag ret handle eff]
   (condp instance? eff
     Pure (ret (extract eff))
     Impure (let [request (.-request eff)
                  cont (.-cont eff)
-                 cont (append-handler cont (partial handle-relay can-handle? ret handle))]
-             (if (can-handle? request)
+                 cont (append-handler cont (partial handle-relay tag ret handle))]
+             (if (= (first request) tag)
                (handle request cont)
                (impure request (singleton-queue cont))))))
 

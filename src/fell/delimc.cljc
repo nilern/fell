@@ -4,10 +4,7 @@
 (defn make [tag]
   {:shift0 (fn [f] (request-eff [tag f]))
    :reset0 (fn [eff]
-             (handle-relay #(= (first %) tag)
-                           pure
-                           (fn [[_ f] k] (f k))
-                           eff))})
+             (handle-relay tag pure (fn [[_ f] k] (f k)) eff))})
 
 (let [{:keys [shift0 reset0]} (make ::shift0)]
   ;; ((() -> Eff r a) -> Eff r a) -> Eff (Delimc | r) a

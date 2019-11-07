@@ -1,8 +1,8 @@
 (ns fell.core-test
   (:require [clojure.test :refer :all]
 
-            [cats.core :refer [return bind extract]]
-            [fell.queue :refer [singleton-queue]]
+            [cats.core :refer [return bind]]
+            [fell.eff :refer [context]]
             [fell.core :refer :all])
   (:import [fell.eff Pure]))
 

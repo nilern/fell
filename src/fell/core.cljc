@@ -1,7 +1,6 @@
 (ns fell.core
   "The Eff a.k.a. Freer Monad."
   (:require [cats.core :refer [extract]]
-            [cats.protocols :refer [Contextual Extract Context Monad]]
             [fell.eff :refer [#?@(:cljs [Pure Impure]) ->Pure ->Impure]]
             [fell.queue :refer [singleton-queue append-handler]])
   #?(:clj (:import [fell.eff Pure Impure])))

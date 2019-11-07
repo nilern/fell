@@ -1,6 +1,6 @@
 (ns fell.eff
-  (:require [cats.core :refer [extract]]
-            [cats.protocols :refer [Contextual Extract Context Monad]]))
+  "Implementation types for the freer monad Eff."
+  (:require [cats.protocols :refer [Contextual Extract Context Monad]]))
 
 (defprotocol FlatMap
   "Monadic bind without [[Context]]."

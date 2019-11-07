@@ -1,4 +1,5 @@
 (ns fell.delimc
+  "Delimited continuations as an effect."
   (:require [fell.core :refer [pure request-eff handle-relay]]))
 
 (defn make [tag]

@@ -39,26 +39,6 @@
 
 (declare eff-trampoline)
 
-;; Please trampoline me
-(deftype Bounce [callee args]
-  Contextual
-  (-get-context [_] context)
-
-  FlatMap
-  (-flat-map [self f] (-flat-map (eff-trampoline self) f)))
-
-(defn bounce
-  "Call `f`, an Eff-returning fn with `args` with tail call optimization."
-  [f & args]
-  (Bounce. f args))
-
-(defn eff-trampoline
-  "Like [[trampoline]] but uses [[Bounce]] instead of thunks as the case where trampolining is required."
-  [eff]
-  (if (instance? Bounce eff)
-    (recur (apply (.-callee eff) (.-args eff)))
-    eff))
-
 (def context
   "A [[Context]] for Eff."
   (reify
@@ -82,12 +62,7 @@
     (if (seq queue*)
       (condp instance? eff
         Pure (recur queue* (extract eff))
-        Impure (impure (.-request eff) (into (.-cont eff) queue*))
-        Bounce (let [eff (eff-trampoline eff)]
-                 ;; TODO: DRY
-                 (condp instance? eff
-                   Pure (recur queue* (extract eff))
-                   Impure (impure (.-request eff) (into (.-cont eff) queue*)))))
+        Impure (impure (.-request eff) (into (.-cont eff) queue*)))
       eff)))
 
 (defn append-handler
@@ -114,13 +89,11 @@
                  cont (append-handler cont (partial handle-relay can-handle? ret handle))]
              (if (can-handle? request)
                (bounce handle request cont)
-               (impure request (singleton-queue cont))))
-    Bounce (recur can-handle? ret handle (eff-trampoline eff))))
+               (impure request (singleton-queue cont))))))
 
 (defn run
   "Run the Eff `eff` and return the contained value. Throw if `eff` has unhandled effects."
   [eff]
   (condp instance? eff
     Pure (extract eff)
-    Impure (throw (#?(:clj RuntimeException., :cljs js/Error.) (str "unhandled effect " (pr-str (.-request eff)))))
-    Bounce (recur (eff-trampoline eff))))
+    Impure (throw (#?(:clj RuntimeException., :cljs js/Error.) (str "unhandled effect " (pr-str (.-request eff)))))))

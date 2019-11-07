@@ -24,11 +24,7 @@
   (testing "impure"
     (let [eff (-flat-map (request-eff [::foo 23]) pure)]
       (is (= (.-request eff) [::foo 23]))
-      (is (= (.-cont eff) (conj (singleton-queue pure) pure)))))
-
-  (testing "bounce"
-    (let [eff (-flat-map (bounce pure 23) pure)]
-      (is (= (.-v eff) 23)))))
+      (is (= (.-cont eff) (conj (singleton-queue pure) pure))))))
 
 (deftest monad-test
   (testing "return"
@@ -43,11 +39,7 @@
 
     (testing "impure"
       (let [eff (bind (request-eff [::foo 23]) return)]
-        (is (= (.-request eff) [::foo 23]))))
-
-    (testing "bounce"
-      (let [eff (bind (bounce pure 23) return)]
-        (is (= (.-v eff) 23))))))
+        (is (= (.-request eff) [::foo 23]))))))
 
 (deftest default-queue?-test
   (is (default-queue? (singleton-queue pure)))
@@ -65,8 +57,4 @@
     (is (= (run (pure 23)) 23)))
 
   (testing "impure"
-    (is (thrown? RuntimeException (run (request-eff [::foo 23])))))
-
-  (testing "bounce"
-    (is (= (run (bounce pure 23)) 23))
-    (is (thrown? RuntimeException (run (bounce request-eff [::foo 23]))))))
+    (is (thrown? RuntimeException (run (request-eff [::foo 23]))))))

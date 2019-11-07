@@ -48,12 +48,6 @@
     (-mreturn [_ v] (Pure. v))
     (-mbind [_ mv f] (-flat-map mv f))))
 
-(defn default-queue?
-  "Is `queue` the default continuation queue? Can be used to detect requests in tail position."
-  [queue]
-  (and (= (count queue) 1)
-       (identical? (peek queue) pure)))
-
 (defn- apply-queue
   "Call the continuation queue `queue` with `v`."
   [queue v]
@@ -88,7 +82,7 @@
                  cont (.-cont eff)
                  cont (append-handler cont (partial handle-relay can-handle? ret handle))]
              (if (can-handle? request)
-               (bounce handle request cont)
+               (handle request cont)
                (impure request (singleton-queue cont))))))
 
 (defn run

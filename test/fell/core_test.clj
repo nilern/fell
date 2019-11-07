@@ -10,8 +10,7 @@
 (deftest get-context-test
   (are [eff] (= (-get-context eff) context)
     (pure 23)
-    (request-eff [::foo 23])
-    (bounce identity 23)))
+    (request-eff [::foo 23])))
 
 (deftest extract-test
   (is (= (extract (pure 23)) 23)))
@@ -41,16 +40,9 @@
       (let [eff (bind (request-eff [::foo 23]) return)]
         (is (= (.-request eff) [::foo 23]))))))
 
-(deftest default-queue?-test
-  (is (default-queue? (singleton-queue pure)))
-  (is (not (default-queue? empty-queue)))
-  (is (not (default-queue? (conj (singleton-queue pure) pure))))
-  (is (not (default-queue? (singleton-queue return)))))
-
 (deftest request-eff-test
   (let [eff (request-eff [::foo 23])]
-    (is (= (.-request eff) [::foo 23]))
-    (is (default-queue? (.-cont eff)))))
+    (is (= (.-request eff) [::foo 23]))))
 
 (deftest run-test
   (testing "pure"

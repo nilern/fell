@@ -14,6 +14,8 @@ Don't.
             [fell.reader :refer [ask run-reader]]
             [fell.state :as state]))
 
+;; Workaround for lack of parametric modules.
+;; Could use singletons instead, but fn usages would be more verbose.
 (let [{get-counter :get, set-counter :set, run-counter :run} (state/make ::counter)]
   (def get-counter get-counter)
   (def set-counter set-counter)

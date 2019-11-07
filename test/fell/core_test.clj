@@ -2,28 +2,9 @@
   (:require [clojure.test :refer :all]
 
             [cats.core :refer [return bind extract]]
-            [cats.protocols :refer [-get-context]]
-            [fell.core :refer :all]
-            [fell.queue :refer [empty-queue singleton-queue]])
-  (:import [fell.core Pure]))
-
-(deftest get-context-test
-  (are [eff] (= (-get-context eff) context)
-    (pure 23)
-    (request-eff [::foo 23])))
-
-(deftest extract-test
-  (is (= (extract (pure 23)) 23)))
-
-(deftest flat-map-test
-  (testing "pure"
-    (let [eff (-flat-map (pure 23) pure)]
-      (is (= (.-v eff) 23))))
-
-  (testing "impure"
-    (let [eff (-flat-map (request-eff [::foo 23]) pure)]
-      (is (= (.-request eff) [::foo 23]))
-      (is (= (.-cont eff) (conj (singleton-queue pure) pure))))))
+            [fell.queue :refer [singleton-queue]]
+            [fell.core :refer :all])
+  (:import [fell.eff Pure]))
 
 (deftest monad-test
   (testing "return"

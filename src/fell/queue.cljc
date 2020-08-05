@@ -30,4 +30,4 @@
   (comp handle (partial apply-queue queue)))
 
 (defn weave [queue state handler]
-  (fn [x] (handler (fmap (constantly (apply-queue queue x)) state))))
+  (singleton-queue (fn [x] (handler (fmap (constantly (apply-queue queue x)) state)))))

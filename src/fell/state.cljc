@@ -1,7 +1,7 @@
 (ns fell.state
   "State effect."
   (:refer-clojure :exclude [get set])
-  (:require [cats.core :refer [extract fmap]]
+  (:require [cats.core :refer [extract]]
             [cats.data :refer [pair]]
             [fell.eff :refer [Effect weave #?@(:cljs [Pure Impure])]]
             [fell.queue :as q :refer [apply-queue]]
@@ -35,12 +35,10 @@
   [eff state]
   (loop [state state, eff eff]
     (condp instance? eff
-      Pure (pair state (extract eff))
+      Pure (pure (pair state (extract eff)))
       Impure (let [request (.-request eff)
                    cont (.-cont eff)]
                (condp instance? request
                  Get (recur state (apply-queue cont state))
                  Set (recur (.-new_value request) (apply-queue cont nil))
-                 (let [suspension (pair state nil)]
-                   (impure (weave request suspension resume-state)
-                           (singleton-queue (q/weave cont suspension resume-state)))))))))
+                 (fell.core/weave eff (pair state nil) resume-state))))))

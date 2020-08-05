@@ -1,8 +1,8 @@
 (ns fell.core
   "The Eff a.k.a. Freer Monad."
   (:require [cats.core :refer [extract]]
-            [fell.eff :refer [#?@(:cljs [Pure Impure]) ->Pure ->Impure]]
-            [fell.queue :refer [singleton-queue append-handler]])
+            [fell.eff :as eff :refer [#?@(:cljs [Pure Impure]) ->Pure ->Impure]]
+            [fell.queue :as q :refer [singleton-queue append-handler]])
   #?(:clj (:import [fell.eff Pure Impure])))
 
 (def pure
@@ -18,6 +18,11 @@
   "Wrap the effect `request` into an Eff."
   [request]
   (Impure. request (singleton-queue pure)))
+
+;; TODO: Improve `weave` nomenclature:
+(defn weave [^Impure eff, state handler]
+  (impure (eff/weave (.-request eff) state handler)
+          (q/weave (.-cont eff) state handler)))
 
 (defn handle-relay
   "A generic effect handler that calls `(ret (extract eff))` when `eff` has

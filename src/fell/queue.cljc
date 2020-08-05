@@ -1,6 +1,6 @@
 (ns fell.queue
   "Continuation queue for freer monad."
-  (:require [cats.core :refer [extract]]
+  (:require [cats.core :refer [extract fmap]]
             [fell.eff :refer [#?@(:cljs [Pure Impure])]])
   #?(:clj (:import [clojure.lang PersistentQueue]
                    [fell.eff Pure Impure])))
@@ -13,7 +13,7 @@
   #?(:clj  (conj PersistentQueue/EMPTY v)
      :cljs #queue [v]))
 
-(defn- apply-queue
+(defn apply-queue
   "Call the continuation queue `queue` with `v`."
   [queue v]
   (let [eff ((peek queue) v)
@@ -28,3 +28,6 @@
   "Compose the continuation `queue` with the effect `handler`, returning a function."
   [queue handle]
   (comp handle (partial apply-queue queue)))
+
+(defn weave [queue state handler]
+  (fn [x] (handler (fmap (constantly (apply-queue queue x)) state))))

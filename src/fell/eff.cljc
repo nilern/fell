@@ -6,6 +6,9 @@
   "Monadic bind without [[Context]]."
   (-flat-map [mv f]))
 
+(defprotocol Effect
+  (weave [self state handler]))
+
 (declare context)
 
 ;; No effects

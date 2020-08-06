@@ -42,6 +42,14 @@ Don't.
     run) ;=> [["Asleep" 25] "Energy: 8"]
 ```
 
+## TODO
+
+- [ ] API design
+- [ ] More effects (e.g. writer, bracket, threading)
+- [ ] Documentation
+- [ ] Performance optimization
+- [ ] Tail call "optimization"
+
 ## License
 
 Copyright © 2019 Pauli Jaakkola

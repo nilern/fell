@@ -36,8 +36,8 @@
     (condp instance? eff
       Pure (pure (pair state (extract eff)))
       Impure (let [request (.-request eff)
-                   cont (.-cont eff)]
+                   k (partial q/apply-queue (.-cont eff))]
                (condp instance? request
-                 Get (recur state (q/apply-queue cont state))
-                 Set (recur (.-new_value request) (q/apply-queue cont nil))
+                 Get (recur state (k state))
+                 Set (recur (.-new_value request) (k nil))
                  (fell.core/weave eff (pair state nil) resume-state))))))

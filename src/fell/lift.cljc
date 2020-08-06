@@ -23,8 +23,8 @@
   (condp instance? eff
     Pure (return ctx (extract eff))
     Impure (let [request (.-request eff)
-                 cont (.-cont eff)]
+                 k (partial q/apply-queue (.-cont eff))]
              (condp instance? request
-               Lift (bind (.-lifted_mv request) (q/weave->fn cont (pair ctx nil) resume-lift))
+               Lift (bind (.-lifted_mv request) (q/weave-fn k (pair ctx nil) resume-lift))
                (throw (#?(:clj RuntimeException., :cljs js/Error.)
                         (str "unhandled effect " (pr-str (.-request eff)))))))))

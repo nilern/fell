@@ -29,9 +29,9 @@
     (condp instance? eff
       Pure eff
       Impure (let [request (.-request eff)
-                   cont (.-cont eff)]
+                   k (partial q/apply-queue (.-cont eff))]
                (condp instance? request
-                 Ask (recur (q/apply-queue cont env))
+                 Ask (recur (k env))
                  Local (mlet [v (run-reader (.-body request) ((.-f request) env))]
-                         (run-reader (q/apply-queue cont v) env))
+                         (run-reader (qk v) env))
                  (fell.core/weave eff (pair env nil) resume-reader))))))

@@ -1,6 +1,12 @@
 (ns fell.eff
   "Implementation types for the freer monad Eff."
-  (:require [cats.protocols :refer [Contextual Extract Context Monad]]))
+  (:require [cats.protocols :refer [Contextual Extract Context Functor Applicative Monad]]))
+
+(defprotocol FFunctor
+  (-ffmap [self f]))
+
+(defprotocol FApplicative
+  (-ffapply [self av]))
 
 (defprotocol FlatMap
   "Monadic bind without [[Context]]."
@@ -19,6 +25,12 @@
   Extract
   (-extract [_] v)
 
+  FFunctor
+  (-ffmap [_ f] (Pure. (f v)))
+
+  FApplicative
+  (-ffapply [_ av] (-ffmap av v))
+
   FlatMap
   (-flat-map [_ f] (f v)))
 
@@ -27,6 +39,12 @@
   Contextual
   (-get-context [_] context)
 
+  FFunctor
+  (-ffmap [_ f] (Impure. request (conj cont (comp ->Pure f))))
+
+  FApplicative
+  (-ffapply [_ av] (Impure. request (conj cont (partial -ffmap av))))
+
   FlatMap
   (-flat-map [_ f] (Impure. request (conj cont f))))
 
@@ -34,6 +52,13 @@
   "A [[Context]] for Eff."
   (reify
     Context
+
+    Functor
+    (-fmap [_ f fv] (-ffmap fv f))
+
+    Applicative
+    (-pure [_ v] (Pure. v))
+    (-fapply [_ af av] (-ffapply af av))
 
     Monad
     (-mreturn [_ v] (Pure. v))

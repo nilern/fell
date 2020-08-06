@@ -3,25 +3,26 @@
 
   It is impossible to have more than one lifted monad, so there is no `make` function here."
   (:require [cats.core :refer [return bind extract]]
-            [fell.eff :refer [#?@(:cljs [Pure Impure])]]
-            [fell.queue :refer [append-handler]]
+            [cats.data :refer [pair]]
+            [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
+            [fell.queue :as q]
             [fell.core :refer [request-eff]])
   #?(:clj (:import [fell.eff Pure Impure])))
 
-(defn lift
-  "Lift the monadic value `mv` to an Eff, gaining the ability to add other effects on top of that monad."
-  [mv]
-  (request-eff [::lift mv]))
+(defrecord Lift [lifted-mv]
+  Effect
+  (weave [self _ _] self))
 
-(defn run-lift
-  "Run an Eff `eff` that has just the Lift effect using the Cats monad context `ctx`.
-  Essentially like [[fell.core/run]] but you get to use our lifted monad."
-  [ctx eff]
+(declare run-lift)
+
+(defn- resume-lift [suspension] (run-lift (.-fst suspension) (.-snd suspension)))
+
+(defn run-lift [ctx eff]
   (condp instance? eff
     Pure (return ctx (extract eff))
-    Impure (let [[tag mv] (.-request eff)
+    Impure (let [request (.-request eff)
                  cont (.-cont eff)]
-             (case tag
-               ::lift (bind mv (append-handler cont (partial run-lift ctx)))
+             (condp instance? request
+               Lift (bind (.-lifted_mv request) (q/weave->fn cont (pair ctx nil) resume-lift))
                (throw (#?(:clj RuntimeException., :cljs js/Error.)
                         (str "unhandled effect " (pr-str (.-request eff)))))))))

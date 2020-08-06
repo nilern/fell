@@ -1,7 +1,8 @@
 # Fell
 
 Freer monads for Clojure and [funcool/cats](http://funcool.github.io/cats/latest/) based on
-[Freer Monads, More Extensible Effects](http://okmij.org/ftp/Haskell/extensible/more.pdf).
+[Freer Monads, More Extensible Effects](http://okmij.org/ftp/Haskell/extensible/more.pdf) and
+[Effect Handlers in Scope](https://www.cs.ox.ac.uk/people/nicolas.wu/papers/Scope.pdf).
 
 ## Usage
 
@@ -46,7 +47,7 @@ Don't.
 
 - [ ] More tests
 - [ ] API (and internal naming) design and refactoring
-- [ ] More effects (e.g. writer, bracket, threading)
+- [ ] More effects (e.g. bracket, threading)
 - [ ] Documentation
 - [ ] Performance optimization
 - [ ] Tail call "optimization"

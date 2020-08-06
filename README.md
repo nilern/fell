@@ -44,7 +44,8 @@ Don't.
 
 ## TODO
 
-- [ ] API design
+- [ ] More tests
+- [ ] API (and internal naming) design and refactoring
 - [ ] More effects (e.g. writer, bracket, threading)
 - [ ] Documentation
 - [ ] Performance optimization

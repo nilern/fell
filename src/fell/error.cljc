@@ -1,10 +1,10 @@
 (ns fell.error
   "Error effect."
   (:require [cats.core :refer [mlet fmap extract]]
-            [cats.monad.either :as either :refer [left right #?@(:cljs [Left Right])]]
+            [cats.monad.either :refer [left right #?@(:cljs [Left Right])]]
             [fell.eff :refer [Effect weave #?@(:cljs [Pure Impure])]]
-            [fell.queue :as q :refer [singleton-queue apply-queue]]
-            [fell.core :refer [pure impure request-eff]])
+            [fell.queue :as q]
+            [fell.core :refer [pure request-eff]])
   #?(:clj (:import [cats.monad.either Left Right]
                    [fell.eff Pure Impure])))
 
@@ -41,6 +41,6 @@
                           Left (mlet [status (run-error ((.-on_error request) (extract status)))]
                                  (condp instance? status
                                    Left (pure status)
-                                   Right (run-error (apply-queue cont (extract status)))))
-                          Right (run-error (apply-queue cont (extract status)))))
+                                   Right (run-error (q/apply-queue cont (extract status)))))
+                          Right (run-error (q/apply-queue cont (extract status)))))
                (fell.core/weave eff (right nil) resume-error)))))

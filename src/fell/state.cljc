@@ -4,9 +4,8 @@
   (:require [cats.core :refer [extract]]
             [cats.data :refer [pair]]
             [fell.eff :refer [Effect weave #?@(:cljs [Pure Impure])]]
-            [fell.queue :as q :refer [apply-queue]]
-            [fell.core :refer [pure impure request-eff #?@(:cljs [Pure Impure])]]
-            [fell.queue :refer [singleton-queue]])
+            [fell.queue :as q]
+            [fell.core :refer [pure impure request-eff #?@(:cljs [Pure Impure])]])
   #?(:clj (:import [fell.eff Pure Impure])))
 
 (declare run-state)
@@ -39,6 +38,6 @@
       Impure (let [request (.-request eff)
                    cont (.-cont eff)]
                (condp instance? request
-                 Get (recur state (apply-queue cont state))
-                 Set (recur (.-new_value request) (apply-queue cont nil))
+                 Get (recur state (q/apply-queue cont state))
+                 Set (recur (.-new_value request) (q/apply-queue cont nil))
                  (fell.core/weave eff (pair state nil) resume-state))))))

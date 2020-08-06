@@ -13,6 +13,8 @@
   Effect
   (weave [self _ _] self))
 
+(defn lift [mv] (request-eff (Lift. mv)))
+
 (declare run-lift)
 
 (defn- resume-lift [suspension] (run-lift (.-fst suspension) (.-snd suspension)))

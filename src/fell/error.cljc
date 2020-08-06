@@ -32,11 +32,13 @@
 (defn run-error [eff]
   (condp instance? eff
     Pure (pure (right (extract eff)))
-    Impure (let [request (.-request eff)
+    Impure (let [^Impure eff eff
+                 request (.-request eff)
                  k (partial q/apply-queue (.-cont eff))]
              (condp instance? request
-               Raise (pure (left (.-error request)))
-               Handle (mlet [status (run-error (.-body request))]
+               Raise (pure (left (.-error ^Raise request)))
+               Handle (mlet [^Handle request request
+                             status (run-error (.-body request))]
                         (condp instance? status
                           Left (mlet [status (run-error ((.-on_error request) (extract status)))]
                                  (condp instance? status

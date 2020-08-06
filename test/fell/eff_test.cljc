@@ -4,7 +4,8 @@
             [cats.core :refer [extract]]
             [cats.protocols :refer [-get-context]]
             [fell.queue :refer [empty-queue]]
-            [fell.eff :refer :all]))
+            [fell.eff :refer :all])
+  #?(:clj (:import [fell.eff Pure Impure])))
 
 (deftest get-context-test
   (are [eff] (= (-get-context eff) context)
@@ -16,10 +17,10 @@
 
 (deftest flat-map-test
   (testing "->Pure"
-    (let [eff (-flat-map (->Pure 23) ->Pure)]
+    (let [^Pure eff (-flat-map (->Pure 23) ->Pure)]
       (is (= (.-v eff) 23))))
 
   (testing "->Impure"
-    (let [eff (-flat-map (->Impure [::foo 23] empty-queue) ->Pure)]
+    (let [^Impure eff (-flat-map (->Impure [::foo 23] empty-queue) ->Pure)]
       (is (= (.-request eff) [::foo 23]))
       (is (= (.-cont eff) (conj empty-queue ->Pure))))))

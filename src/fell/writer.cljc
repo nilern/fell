@@ -1,11 +1,12 @@
 (ns fell.writer
   (:require [cats.core :refer [mlet fmap mempty mappend extract]]
             [cats.context :as ctx]
-            [cats.data :refer [pair]]
+            [cats.data :refer [pair #?(:cljs Pair)]]
             [fell.core :refer [pure request-eff]]
             [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
             [fell.queue :as q])
-  #?(:clj (:import [fell.eff Pure Impure])))
+  #?(:clj (:import [cats.data Pair]
+                   [fell.eff Pure Impure])))
 
 (defrecord Tell [message]
   Effect
@@ -32,20 +33,22 @@
 (defn- resume* [output eff]
   (condp instance? eff
     Pure (pure (pair output (extract eff)))
-    Impure (let [request (.-request eff)
+    Impure (let [^Impure eff eff
+                 request (.-request eff)
                  k (partial q/apply-queue (.-cont eff))]
              (condp instance? request
-               Tell (recur (mappend output (.-message request)) (k nil))
-               Listen (mlet [result (run (ctx/infer output) (.-body request))
+               Tell (recur (mappend output (.-message ^Tell request)) (k nil))
+               Listen (mlet [^Pair result (run (ctx/infer output) (.-body ^Listen request))
                              :let [output* (.-fst result)]]
                         (resume* (mappend output output*) (k result)))
-               Pass (mlet [result (run (ctx/infer output) (.-body request))
+               Pass (mlet [^Pair result (run (ctx/infer output) (.-body ^Pass request))
                            :let [output* (.-fst result)
-                                 f (.-fst (.-snd result))
-                                 v (.-snd (.-snd result))]]
+                                 ^Pair vs (.-snd result)
+                                 f (.-fst vs)
+                                 v (.-snd vs)]]
                       (resume* (mappend output (f output*)) (k v)))
                (fell.core/weave eff (pair output nil) resume)))))
 
-(defn- resume [suspension] (resume* (.-fst suspension) (.-snd suspension)))
+(defn- resume [^Pair suspension] (resume* (.-fst suspension) (.-snd suspension)))
 
 (defn run [ctx eff] (resume* (mempty ctx) eff))

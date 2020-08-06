@@ -16,7 +16,7 @@
 
 (defn request-eff
   "Wrap the effect `request` into an Eff."
-  [request]
+  ^Impure [request]
   (Impure. request (singleton-queue pure)))
 
 ;; TODO: Improve `weave` nomenclature:
@@ -34,7 +34,8 @@
   [tag ret handle eff]
   (condp instance? eff
     Pure (ret (extract eff))
-    Impure (let [request (.-request eff)
+    Impure (let [^Impure eff eff
+                 request (.-request eff)
                  cont (.-cont eff)
                  cont (append-handler cont (partial handle-relay tag ret handle))]
              (if (= (first request) tag)
@@ -46,5 +47,6 @@
   [eff]
   (condp instance? eff
     Pure (extract eff)
-    Impure (throw (#?(:clj RuntimeException., :cljs js/Error.)
-                    (str "unhandled effect " (pr-str (.-request eff)))))))
+    Impure (let [^Impure eff eff]
+             (throw (#?(:clj RuntimeException., :cljs js/Error.)
+                      (str "unhandled effect " (pr-str (.-request eff))))))))

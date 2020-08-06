@@ -21,7 +21,8 @@
     (if (seq queue*)
       (condp instance? eff
         Pure (recur queue* (extract eff))
-        Impure (Impure. (.-request eff) (into (.-cont eff) queue*)))
+        Impure (let [^Impure eff eff]
+                 (Impure. (.-request eff) (into (.-cont eff) queue*))))
       eff)))
 
 (defn append-handler

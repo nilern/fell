@@ -3,28 +3,27 @@
   (:require [cats.core :refer [mlet fmap mempty mappend extract]]
             [cats.context :as ctx]
             [cats.data :refer [pair #?(:cljs Pair)]]
-            [fell.core :refer [pure impure request-eff]]
+            [fell.core :refer [pure impure request-eff first-order-weave]]
             [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
-            [fell.queue :as q]
-            [fell.continuation :as cont])
+            [fell.queue :as q])
   #?(:clj (:import [cats.data Pair]
                    [fell.eff Pure Impure])))
 
 (defrecord Tell [message]
   Effect
-  (weave [self k suspension handler] (impure self (cont/weave k suspension handler))))
+  (weave [self cont suspension resume] (first-order-weave self cont suspension resume)))
 
 (defrecord Listen [body]
   Effect
-  (weave [_ k suspension handler]
-    (impure (Listen. (handler (fmap (constantly suspension) body)))
-            (comp handler (partial fmap k)))))
+  (weave [_ cont suspension resume]
+    (impure (Listen. (resume (fmap (constantly suspension) body)))
+            (comp resume (partial fmap cont)))))
 
 (defrecord Pass [body]
   Effect
-  (weave [_ k suspension handler]
-    (impure (Pass. (handler (fmap (constantly suspension) body)))
-            (q/singleton-queue (comp handler (partial fmap k))))))
+  (weave [_ cont suspension resume]
+    (impure (Pass. (resume (fmap (constantly suspension) body)))
+            (q/singleton-queue (comp resume (partial fmap cont))))))
 
 (defn tell
   "An Eff which outputs `message`."

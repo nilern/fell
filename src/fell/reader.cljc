@@ -2,22 +2,21 @@
   "Reader effect."
   (:require [cats.core :refer [mlet fmap]]
             [cats.data :refer [pair #?(:cljs Pair)]]
-            [fell.core :refer [impure request-eff]]
+            [fell.core :refer [impure request-eff first-order-weave]]
             [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
-            [fell.queue :as q]
-            [fell.continuation :as cont])
+            [fell.queue :as q])
   #?(:clj (:import [cats.data Pair]
                    [fell.eff Pure Impure])))
 
 (defrecord Ask []
   Effect
-  (weave [self k suspension handler] (impure self (cont/weave k suspension handler))))
+  (weave [self cont suspension resume] (first-order-weave self cont suspension resume)))
 
 (defrecord Local [f body]
   Effect
-  (weave [_ k suspension handler]
-    (impure (Local. f (handler (fmap (constantly body) suspension)))
-            (comp handler (partial fmap k)))))
+  (weave [_ cont suspension resume]
+    (impure (Local. f (resume (fmap (constantly body) suspension)))
+            (comp resume (partial fmap cont)))))
 
 (def ask
   "An Eff which gets the Reader value."

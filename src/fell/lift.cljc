@@ -7,13 +7,13 @@
             [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
             [fell.queue :as q]
             [fell.continuation :as cont]
-            [fell.core :refer [impure request-eff]])
+            [fell.core :refer [impure request-eff first-order-weave]])
   #?(:clj (:import [cats.data Pair]
                    [fell.eff Pure Impure])))
 
 (defrecord Lift [lifted-mv]
   Effect
-  (weave [self k suspension handler] (impure self (cont/weave k suspension handler))))
+  (weave [self cont suspension resume] (first-order-weave self cont suspension resume)))
 
 (defn lift
   "Lift the monadic value `mv` into Eff."

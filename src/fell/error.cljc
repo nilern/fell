@@ -4,23 +4,21 @@
             [cats.monad.either :refer [left right #?@(:cljs [Left Right])]]
             [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
             [fell.queue :as q]
-            [fell.continuation :as cont]
-            [fell.core :refer [pure impure request-eff]])
+            [fell.core :refer [pure impure request-eff first-order-weave]])
   #?(:clj (:import [cats.monad.either Left Right]
                    [fell.eff Pure Impure])))
 
 (defrecord Raise [error]
   Effect
-  (weave [self k suspension handler]
-    (impure self (cont/weave k suspension handler))))
+  (weave [self cont suspension resume] (first-order-weave self cont suspension resume)))
 
 (defrecord Handle [body on-error]
   Effect
-  (weave [_ k suspension handler]
+  (weave [_ cont suspension resume]
     (impure
-      (Handle. (handler (fmap (constantly body) suspension))
-               (fn [error] (handler (fmap (constantly (on-error error)) suspension))))
-      (comp handler (partial fmap k)))))
+      (Handle. (resume (fmap (constantly body) suspension))
+               (fn [error] (resume (fmap (constantly (on-error error)) suspension))))
+      (comp resume (partial fmap cont)))))
 
 (defn raise
   "An Eff which raises `error`."

@@ -6,17 +6,17 @@
             [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
             [fell.queue :as q]
             [fell.continuation :as cont]
-            [fell.core :refer [pure impure request-eff #?@(:cljs [Pure Impure])]])
+            [fell.core :refer [pure impure request-eff first-order-weave #?@(:cljs [Pure Impure])]])
   #?(:clj (:import [cats.data Pair]
                    [fell.eff Pure Impure])))
 
 (defrecord Get []
   Effect
-  (weave [self k suspension handler] (impure self (cont/weave k suspension handler))))
+  (weave [self cont suspension resume] (first-order-weave self cont suspension resume)))
 
 (defrecord Set [new-value]
   Effect
-  (weave [self k suspension handler] (impure self (cont/weave k suspension handler))))
+  (weave [self cont suspension resume] (impure self (cont/weave cont suspension resume))))
 
 (def get
   "An Eff that gets the State state value."
@@ -29,7 +29,7 @@
 
 (declare run)
 
-(defn- resume-state [^Pair suspension] (run (.-snd suspension) (.-fst suspension)))
+(defn- resume [^Pair suspension] (run (.-snd suspension) (.-fst suspension)))
 
 (defn run
   "Handle State effects in the Eff `eff` using `state` as the initial state value."
@@ -43,4 +43,4 @@
                (condp instance? request
                  Get (recur state (k state))
                  Set (recur (.-new_value ^Set request) (k nil))
-                 (fell.core/weave eff (pair state nil) resume-state))))))
+                 (fell.core/weave eff (pair state nil) resume))))))

@@ -6,13 +6,14 @@
             [cats.data :refer [pair #?(:cljs Pair)]]
             [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
             [fell.queue :as q]
-            [fell.core :refer [request-eff]])
+            [fell.core :refer [impure request-eff]])
   #?(:clj (:import [cats.data Pair]
                    [fell.eff Pure Impure])))
 
 (defrecord Lift [lifted-mv]
   Effect
-  (weave [self _ _] self))
+  (weave [self k suspension handler]
+    (impure self (q/singleton-queue (q/weave-fn k suspension handler)))))
 
 (defn lift [mv] (request-eff (Lift. mv)))
 

@@ -21,9 +21,9 @@
 
 ;; TODO: Improve `weave` nomenclature:
 (defn weave [^Impure eff, state handler]
-  (impure (eff/weave (.-request eff) state handler)
-          (q/weave (.-cont eff) state handler)))
+  (eff/weave (.-request eff) (partial q/apply-queue (.-cont eff)) state handler))
 
+#_
 (defn handle-relay
   "A generic effect handler that calls `(ret (extract eff))` when `eff` has
   no effects and handles requests tagged with `tag` by calling `(handle request cont)`.

@@ -2,7 +2,7 @@
   (:require [cats.core :refer [mlet fmap mempty mappend extract]]
             [cats.context :as ctx]
             [cats.data :refer [pair #?(:cljs Pair)]]
-            [fell.core :refer [pure request-eff]]
+            [fell.core :refer [pure impure request-eff]]
             [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
             [fell.queue :as q])
   #?(:clj (:import [cats.data Pair]
@@ -10,17 +10,20 @@
 
 (defrecord Tell [message]
   Effect
-  (weave [self _ _] self))
+  (weave [self k suspension handler]
+    (impure self (q/singleton-queue (q/weave-fn k suspension handler)))))
 
 (defrecord Listen [body]
   Effect
-  (weave [_ suspension handler]
-    (Listen. (handler (fmap (constantly suspension) body)))))
+  (weave [_ k suspension handler]
+    (impure (Listen. (handler (fmap (constantly suspension) body)))
+            (q/singleton-queue (comp handler (partial fmap k))))))
 
 (defrecord Pass [body]
   Effect
-  (weave [_ suspension handler]
-    (Pass. (handler (fmap (constantly suspension) body)))))
+  (weave [_ k suspension handler]
+    (impure (Pass. (handler (fmap (constantly suspension) body)))
+            (q/singleton-queue (comp handler (partial fmap k))))))
 
 (defn tell [message] (request-eff (Tell. message)))
 

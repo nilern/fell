@@ -13,11 +13,13 @@
 
 (defrecord Get []
   Effect
-  (weave [self _ _] self))
+  (weave [self k suspension handler]
+    (impure self (q/singleton-queue (q/weave-fn k suspension handler)))))
 
 (defrecord Set [new-value]
   Effect
-  (weave [self _ _] self))
+  (weave [self k suspension handler]
+    (impure self (q/singleton-queue (q/weave-fn k suspension handler)))))
 
 (def get
   "An Eff that gets the State state value."

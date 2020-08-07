@@ -4,19 +4,22 @@
             [cats.monad.either :refer [left right #?@(:cljs [Left Right])]]
             [fell.eff :refer [Effect weave #?@(:cljs [Pure Impure])]]
             [fell.queue :as q]
-            [fell.core :refer [pure request-eff]])
+            [fell.core :refer [pure impure request-eff]])
   #?(:clj (:import [cats.monad.either Left Right]
                    [fell.eff Pure Impure])))
 
 (defrecord Raise [error]
   Effect
-  (weave [self _ _] self))
+  (weave [self k suspension handler]
+    (impure self (q/singleton-queue (q/weave-fn k suspension handler)))))
 
 (defrecord Handle [body on-error]
   Effect
-  (weave [_ suspension handler]
-    (Handle. (handler (fmap (constantly body) suspension))
-             (fn [error] (handler (fmap (constantly (on-error error)) suspension))))))
+  (weave [_ k suspension handler]
+    (impure
+      (Handle. (handler (fmap (constantly body) suspension))
+               (fn [error] (handler (fmap (constantly (on-error error)) suspension))))
+      (q/singleton-queue (comp handler (partial fmap k))))))
 
 (defn raise [error] (request-eff (Raise. error)))
 
@@ -37,7 +40,7 @@
                  k (partial q/apply-queue (.-cont eff))]
              (condp instance? request
                Raise (pure (left (.-error ^Raise request)))
-               Handle (mlet [^Handle request request
+               Handle (mlet [:let [^Handle request request]
                              status (run-error (.-body request))]
                         (condp instance? status
                           Left (mlet [status (run-error ((.-on_error request) (extract status)))]

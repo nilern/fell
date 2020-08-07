@@ -13,7 +13,7 @@
   (-flat-map [mv f]))
 
 (defprotocol Effect
-  (weave [self state handler]))
+  (weave [self cont state handler]))
 
 (declare context)
 

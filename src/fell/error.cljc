@@ -2,8 +2,9 @@
   "Error effect."
   (:require [cats.core :refer [mlet fmap extract]]
             [cats.monad.either :refer [left right #?@(:cljs [Left Right])]]
-            [fell.eff :refer [Effect weave #?@(:cljs [Pure Impure])]]
+            [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
             [fell.queue :as q]
+            [fell.continuation :as cont]
             [fell.core :refer [pure impure request-eff]])
   #?(:clj (:import [cats.monad.either Left Right]
                    [fell.eff Pure Impure])))
@@ -11,7 +12,7 @@
 (defrecord Raise [error]
   Effect
   (weave [self k suspension handler]
-    (impure self (q/singleton-queue (q/weave-fn k suspension handler)))))
+    (impure self (cont/weave k suspension handler))))
 
 (defrecord Handle [body on-error]
   Effect
@@ -19,7 +20,7 @@
     (impure
       (Handle. (handler (fmap (constantly body) suspension))
                (fn [error] (handler (fmap (constantly (on-error error)) suspension))))
-      (q/singleton-queue (comp handler (partial fmap k))))))
+      (comp handler (partial fmap k)))))
 
 (defn raise [error] (request-eff (Raise. error)))
 

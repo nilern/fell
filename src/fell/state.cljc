@@ -3,8 +3,9 @@
   (:refer-clojure :exclude [get set])
   (:require [cats.core :refer [extract]]
             [cats.data :refer [pair #?(:cljs Pair)]]
-            [fell.eff :refer [Effect weave #?@(:cljs [Pure Impure])]]
+            [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
             [fell.queue :as q]
+            [fell.continuation :as cont]
             [fell.core :refer [pure impure request-eff #?@(:cljs [Pure Impure])]])
   #?(:clj (:import [cats.data Pair]
                    [fell.eff Pure Impure])))
@@ -13,13 +14,11 @@
 
 (defrecord Get []
   Effect
-  (weave [self k suspension handler]
-    (impure self (q/singleton-queue (q/weave-fn k suspension handler)))))
+  (weave [self k suspension handler] (impure self (cont/weave k suspension handler))))
 
 (defrecord Set [new-value]
   Effect
-  (weave [self k suspension handler]
-    (impure self (q/singleton-queue (q/weave-fn k suspension handler)))))
+  (weave [self k suspension handler] (impure self (cont/weave k suspension handler))))
 
 (def get
   "An Eff that gets the State state value."

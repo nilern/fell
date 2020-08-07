@@ -6,14 +6,14 @@
             [cats.data :refer [pair #?(:cljs Pair)]]
             [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
             [fell.queue :as q]
+            [fell.continuation :as cont]
             [fell.core :refer [impure request-eff]])
   #?(:clj (:import [cats.data Pair]
                    [fell.eff Pure Impure])))
 
 (defrecord Lift [lifted-mv]
   Effect
-  (weave [self k suspension handler]
-    (impure self (q/singleton-queue (q/weave-fn k suspension handler)))))
+  (weave [self k suspension handler] (impure self (cont/weave k suspension handler))))
 
 (defn lift [mv] (request-eff (Lift. mv)))
 
@@ -28,6 +28,6 @@
                  request (.-request eff)
                  k (partial q/apply-queue (.-cont eff))]
              (condp instance? request
-               Lift (bind (.-lifted_mv ^Lift request) (q/weave-fn k (pair ctx nil) resume-lift))
+               Lift (bind (.-lifted_mv ^Lift request) (cont/weave k (pair ctx nil) resume-lift))
                (throw (#?(:clj RuntimeException., :cljs js/Error.)
                         (str "unhandled effect " (pr-str (.-request eff)))))))))

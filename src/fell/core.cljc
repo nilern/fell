@@ -1,18 +1,18 @@
 (ns fell.core
   "The Eff a.k.a. Freer Monad."
   (:require [cats.core :refer [extract]]
-            [fell.eff :as eff :refer [#?@(:cljs [Pure Impure]) ->Pure ->Impure]]
-            [fell.queue :as q :refer [singleton-queue append-handler]])
+            [fell.eff :as eff :refer [#?@(:cljs [Pure Impure]) ->Pure]]
+            [fell.queue :as q :refer [singleton-queue]])
   #?(:clj (:import [fell.eff Pure Impure])))
 
 (def pure
   "Inject the argument in an Eff without any effects."
   ->Pure)
 
-(def impure
-  "Create an Eff from a request and a continuation queue.
+(defn impure [request k]
+  "Create an Eff from a request and a continuation.
   You mostly only need this when implementing new effects."
-  ->Impure)
+  (Impure. request (q/singleton-queue k)))
 
 (defn request-eff
   "Wrap the effect `request` into an Eff."

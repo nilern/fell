@@ -10,8 +10,6 @@
   #?(:clj (:import [cats.data Pair]
                    [fell.eff Pure Impure])))
 
-(declare run-state)
-
 (defrecord Get []
   Effect
   (weave [self k suspension handler] (impure self (cont/weave k suspension handler))))
@@ -29,10 +27,12 @@
   [value*]
   (request-eff (Set. value*)))
 
-(defn- resume-state [^Pair suspension] (run-state (.-snd suspension) (.-fst suspension)))
+(declare run)
 
-(defn run-state
-  "`(run-state eff state)` runs the State effect in Eff `eff` using `state` as the initial state value."
+(defn- resume-state [^Pair suspension] (run (.-snd suspension) (.-fst suspension)))
+
+(defn run
+  "Handle State effects in the Eff `eff` using `state` as the initial state value."
   [eff state]
   (loop [state state, eff eff]
     (condp instance? eff

@@ -5,12 +5,17 @@
 (defprotocol FFunctor
   (-ffmap [self f]))
 
+(alter-meta! #'FFunctor assoc :private true)
+
 (defprotocol FApplicative
   (-ffapply [self av]))
 
+(alter-meta! #'FApplicative assoc :private true)
+
 (defprotocol FlatMap
-  "Monadic bind without [[Context]]."
   (-flat-map [mv f]))
+
+(alter-meta! #'FlatMap assoc :private true)
 
 (defprotocol Effect
   (weave [self cont state handler]))

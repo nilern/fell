@@ -1,4 +1,5 @@
 (ns fell.writer
+  "Writer effect."
   (:require [cats.core :refer [mlet fmap mempty mappend extract]]
             [cats.context :as ctx]
             [cats.data :refer [pair #?(:cljs Pair)]]
@@ -25,11 +26,21 @@
     (impure (Pass. (handler (fmap (constantly suspension) body)))
             (q/singleton-queue (comp handler (partial fmap k))))))
 
-(defn tell [message] (request-eff (Tell. message)))
+(defn tell
+  "An Eff which outputs `message`."
+  [message]
+  (request-eff (Tell. message)))
 
-(defn listen [message] (request-eff (Listen. message)))
+(defn listen
+  "An Eff that pairs the result value of `body` with the Writer output from `body`."
+  [body]
+  (request-eff (Listen. body)))
 
-(defn pass [message] (request-eff (Pass. message)))
+(defn pass
+  "An Eff which maps the first field of the [[cats.data.Pair]] result value of `body` over
+  Writer messages from `body`."
+  [body]
+  (request-eff (Pass. body)))
 
 (declare resume run)
 
@@ -54,4 +65,7 @@
 
 (defn- resume [^Pair suspension] (resume* (.-fst suspension) (.-snd suspension)))
 
-(defn run [ctx eff] (resume* (mempty ctx) eff))
+(defn run
+  "Handle Writer effects in `body` using the Cats Monoid [[cats.protocols.Context]] `context`."
+  [context eff]
+  (resume* (mempty context) eff))

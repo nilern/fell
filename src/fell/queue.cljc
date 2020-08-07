@@ -1,5 +1,5 @@
 (ns fell.queue
-  "Continuation queue for freer monad."
+  "Implementation namespace: continuation queue for freer monad."
   (:require [cats.core :refer [extract]]
             [fell.eff :refer [#?@(:cljs [Pure Impure])]])
   #?(:clj (:import [clojure.lang PersistentQueue]

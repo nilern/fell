@@ -10,7 +10,7 @@
   ->Pure)
 
 (defn impure [request k]
-  "Create an Eff from a request and a continuation.
+  "Create an Eff from a request and a continuation fn.
   You mostly only need this when implementing new effects."
   (Impure. request (q/singleton-queue k)))
 
@@ -20,8 +20,10 @@
   (Impure. request (singleton-queue pure)))
 
 ;; TODO: Improve `weave` nomenclature:
-(defn weave [^Impure eff, state handler]
-  (eff/weave (.-request eff) (partial q/apply-queue (.-cont eff)) state handler))
+(defn weave
+  "Weave `suspension` and `handler` into the Impure Eff `eff`."
+  [^Impure eff, suspension handler]
+  (eff/weave (.-request eff) (partial q/apply-queue (.-cont eff)) suspension handler))
 
 #_
 (defn handle-relay

@@ -11,8 +11,8 @@ Don't.
 ```clojure
 (ns fell.example
   (:require [cats.core :refer [mlet return]]
-            [fell.core :refer [request-eff run]]
-            [fell.reader :refer [ask run-reader]]
+            [fell.core :as fell :refer [request-eff]]
+            [fell.reader :as r :refer [ask]]
             [fell.state :as state]))
 
 ;; Workaround for lack of parametric modules.
@@ -38,9 +38,9 @@ Don't.
 
 (-> stateful-computation
     (run-counter 8)
-    (run-reader 17)
+    (r/run 17)
     (run-status "Asleep")
-    run) ;=> [["Asleep" 25] "Energy: 8"]
+    fell/run) ;=> [["Asleep" 25] "Energy: 8"]
 ```
 
 ## TODO

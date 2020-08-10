@@ -6,7 +6,7 @@
             [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
             [fell.queue :as q]
             [fell.continuation :as cont]
-            [fell.core :refer [pure impure request-eff first-order-weave #?@(:cljs [Pure Impure])]])
+            [fell.core :refer [pure impure request-eff first-order-weave]])
   #?(:clj (:import [cats.data Pair]
                    [fell.eff Pure Impure])))
 

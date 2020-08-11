@@ -2,7 +2,8 @@
   "Monad lifting effect.
 
   It is impossible to have more than one lifted monad."
-  (:require [cats.core :refer [return bind extract]]
+  (:require [cats.core :refer [return extract]]
+            [cats.protocols :refer [-mbind]]
             [cats.data :refer [pair #?(:cljs Pair)]]
             [fell.eff :refer [Effect #?@(:cljs [Pure Impure])]]
             [fell.queue :as q]
@@ -34,6 +35,6 @@
                  request (.-request eff)
                  k (partial q/apply-queue (.-cont eff))]
              (condp instance? request
-               Lift (bind (.-lifted_mv ^Lift request) (cont/weave k (pair context nil) resume-lift))
+               Lift (-mbind context (.-lifted_mv ^Lift request) (cont/weave k (pair context nil) resume-lift))
                (throw (#?(:clj RuntimeException., :cljs js/Error.)
                         (str "unhandled effect " (pr-str (.-request eff)))))))))

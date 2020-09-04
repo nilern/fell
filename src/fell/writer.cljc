@@ -25,47 +25,39 @@
     (impure [label (Pass. (resume (fmap (constantly suspension) body)))]
             (q/singleton-queue (comp resume (partial fmap cont))))))
 
-(defn tell
-  "An Eff which outputs `message`."
-  [label message]
-  (request-eff [label (Tell. message)]))
+(defn make [label]
+  (letfn [(tell [message] (request-eff [label (Tell. message)]))
 
-(defn listen
-  "An Eff that pairs the result value of `body` with the Writer output from `body`."
-  [label body]
-  (request-eff [label (Listen. body)]))
+          (listen [body] (request-eff [label (Listen. body)]))
 
-(defn pass
-  "An Eff which maps the first field of the [[cats.data.Pair]] result value of `body` over
-  Writer messages from `body`."
-  [label body]
-  (request-eff [label (Pass. body)]))
+          (pass [body] (request-eff [label (Pass. body)]))
 
-(declare resume run)
+          (resume* [output eff]
+            (condp instance? eff
+              Pure (pure (pair output (extract eff)))
+              Impure (let [^Impure eff eff
+                           [request-label op] (.-request eff)
+                           k (partial q/apply-queue (.-cont eff))]
+                       (if (= request-label label)
+                         (condp instance? op
+                           Tell (recur (mappend output (.-message ^Tell op)) (k nil))
+                           Listen (mlet [^Pair result (run (.-body ^Listen op) (ctx/infer output))
+                                         :let [output* (.-fst result)]]
+                                    (resume* (mappend output output*) (k result)))
+                           Pass (mlet [^Pair result (run (.-body ^Pass op) (ctx/infer output))
+                                       :let [output* (.-fst result)
+                                             ^Pair vs (.-snd result)
+                                             f (.-fst vs)
+                                             v (.-snd vs)]]
+                                  (resume* (mappend output (f output*)) (k v))))
+                         (fell.core/weave eff (pair output nil) resume)))))
 
-(defn- resume* [label output eff]
-  (condp instance? eff
-    Pure (pure (pair output (extract eff)))
-    Impure (let [^Impure eff eff
-                 [request-label op] (.-request eff)
-                 k (partial q/apply-queue (.-cont eff))]
-             (if (= request-label label)
-               (condp instance? op
-                 Tell (recur label (mappend output (.-message ^Tell op)) (k nil))
-                 Listen (mlet [^Pair result (run (.-body ^Listen op) label (ctx/infer output))
-                               :let [output* (.-fst result)]]
-                          (resume* label (mappend output output*) (k result)))
-                 Pass (mlet [^Pair result (run (.-body ^Pass op) label (ctx/infer output))
-                             :let [output* (.-fst result)
-                                   ^Pair vs (.-snd result)
-                                   f (.-fst vs)
-                                   v (.-snd vs)]]
-                        (resume* label (mappend output (f output*)) (k v))))
-               (fell.core/weave eff (pair output nil) (partial resume label))))))
+          (resume [label ^Pair suspension] (resume* label (.-fst suspension) (.-snd suspension)))
 
-(defn- resume [label ^Pair suspension] (resume* label (.-fst suspension) (.-snd suspension)))
-
-(defn run
-  "Handle Writer effects in `body` using the Cats Monoid [[cats.protocols.Context]] `context`."
-  [eff label context]
-  (resume* label (mempty context) eff))
+          (run [eff label context]
+            (resume* label (mempty context) eff))]
+    {:tell tell #_"An Eff which outputs `message`."
+     :listen listen #_"An Eff that pairs the result value of `body` with the Writer output from `body`."
+     :pass pass #_"An Eff which maps the first field of the [[cats.data.Pair]] result value of `body` over
+            Writer messages from `body`."
+     :run run})) #_"Handle Writer effects in `body` using the Cats Monoid [[cats.protocols.Context]] `context`."

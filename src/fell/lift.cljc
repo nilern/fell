@@ -16,28 +16,24 @@
   Effect
   (weave [_ labeled cont suspension resume] (first-order-weave labeled cont suspension resume)))
 
-(defn lift
-  "Lift the monadic value `mv` into Eff."
-  [label mv]
-  (request-eff [label (Lift. mv)]))
+(defn make [label]
+  (letfn [(lift [mv] (request-eff [label (Lift. mv)]))
 
-(declare run)
+          (resume [^Pair suspension] (run (.-snd suspension) (.-fst suspension)))
 
-(defn- resume [label ^Pair suspension] (run (.-snd suspension) label (.-fst suspension)))
-
-(defn run
-  "Handle the Lift effect in the Cats Monad determined by the [[cats.protocols.Context] `context`.
-  All other effects must already be handled."
-  [eff label context]
-  (condp instance? eff
-    Pure (return context (extract eff))
-    Impure (let [^Impure eff eff
-                 [request-label op] (.-request eff)
-                 k (partial q/apply-queue (.-cont eff))]
-             (if (= request-label label)
-               (condp instance? op
-                 Lift (-mbind context
-                              (.-lifted_mv ^Lift op)
-                              (cont/weave k (pair context nil) (partial resume label))))
-               (throw (#?(:clj RuntimeException., :cljs js/Error.)
-                        (str "unhandled effect " (pr-str (.-request eff)))))))))
+          (run [eff context]
+            (condp instance? eff
+              Pure (return context (extract eff))
+              Impure (let [^Impure eff eff
+                           [request-label op] (.-request eff)
+                           k (partial q/apply-queue (.-cont eff))]
+                       (if (= request-label label)
+                         (condp instance? op
+                           Lift (-mbind context
+                                        (.-lifted_mv ^Lift op)
+                                        (cont/weave k (pair context nil) resume)))
+                         (throw (#?(:clj RuntimeException., :cljs js/Error.)
+                                  (str "unhandled effect " (pr-str (.-request eff)))))))))]
+    {:lift lift #_"Lift the monadic value `mv` into Eff."
+     :run run})) #_"Handle the Lift effect in the Cats Monad determined by the [[cats.protocols.Context] `context`.
+            All other effects must already be handled."

@@ -18,33 +18,26 @@
     (impure [label (Local. f (resume (fmap (constantly body) suspension)))]
             (comp resume (partial fmap cont)))))
 
-(defn ask
-  "An Eff which gets the Reader value."
-  [label]
-  (request-eff [label (Ask.)]))
+(defn make [label]
+  (let [ask (request-eff [label (Ask.)])]
+    (letfn [(local [f body] (request-eff [label (Local. f body)]))
 
-(defn local
-  "An Eff which uses `(f old-reader-value)` as the Reader value in `body`."
-  [label f body]
-  (request-eff [label (Local. f body)]))
+            (resume [^Pair suspension] (run (.-snd suspension) (.-fst suspension)))
 
-(declare run)
-
-(defn- resume [label ^Pair suspension] (run (.-fst suspension) label (.-snd suspension)))
-
-(defn run
-  "Handle Reader effects in `eff` using `env` as the Reader value."
-  [eff label env]
-  (loop [eff eff]
-    (condp instance? eff
-      Pure eff
-      Impure (let [^Impure eff eff
-                   [request-label op] (.-request eff)
-                   k (partial q/apply-queue (.-cont eff))]
-               (if (= request-label label)
-                 (condp instance? op
-                   Ask (recur (k env))
-                   Local (mlet [:let [^Local request op]
-                                v (run (.-body request) label ((.-f request) env))]
-                           (run (k v) label env)))
-                 (fell.core/weave eff (pair env nil) (partial resume label)))))))
+            (run [eff env]
+              (loop [eff eff]
+                (condp instance? eff
+                  Pure eff
+                  Impure (let [^Impure eff eff
+                               [request-label op] (.-request eff)
+                               k (partial q/apply-queue (.-cont eff))]
+                           (if (= request-label label)
+                             (condp instance? op
+                               Ask (recur (k env))
+                               Local (mlet [:let [^Local request op]
+                                            v (run (.-body request) ((.-f request) env))]
+                                       (run (k v) env)))
+                             (fell.core/weave eff (pair env nil) resume))))))]
+      {:ask ask #_"An Eff which gets the Reader value."
+       :local local #_"An Eff which uses `(f old-reader-value)` as the Reader value in `body`."
+       :run run}))) #_"Handle Reader effects in `eff` using `env` as the Reader value."

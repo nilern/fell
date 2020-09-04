@@ -12,11 +12,15 @@ Don't.
 (ns fell.example
   (:require [cats.core :refer [mlet return]]
             [fell.core :as fell :refer [request-eff]]
-            [fell.reader :as r :refer [ask]]
+            [fell.reader :as r]
             [fell.state :as state]))
 
 ;; Workaround for lack of parametric modules.
 ;; Could use singletons instead, but fn usages would be more verbose.
+(let [{ask :ask, run-reader :run} (r/make ::reader)]
+  (def ask ask)
+  (def run-reader run-reader))
+
 (let [{get-counter :get, set-counter :set, run-counter :run} (state/make ::counter)]
   (def get-counter get-counter)
   (def set-counter set-counter)
@@ -38,9 +42,9 @@ Don't.
 
 (-> stateful-computation
     (run-counter 8)
-    (r/run 17)
+    (run-reader 17)
     (run-status "Asleep")
-    fell/run) ;=> [["Asleep" 25] "Energy: 8"]
+    fell/run) ;=> #<Pair ["Energy: 8" #<Pair [25 "Asleep"]>]>
 ```
 
 ## TODO

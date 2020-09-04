@@ -10,39 +10,41 @@
 
 (defrecord Ask []
   Effect
-  (weave [self cont suspension resume] (first-order-weave self cont suspension resume)))
+  (weave [_ labeled cont suspension resume] (first-order-weave labeled cont suspension resume)))
 
 (defrecord Local [f body]
   Effect
-  (weave [_ cont suspension resume]
-    (impure (Local. f (resume (fmap (constantly body) suspension)))
+  (weave [_ [label] cont suspension resume]
+    (impure [label (Local. f (resume (fmap (constantly body) suspension)))]
             (comp resume (partial fmap cont)))))
 
-(def ask
+(defn ask
   "An Eff which gets the Reader value."
-  (request-eff (Ask.)))
+  [label]
+  (request-eff [label (Ask.)]))
 
 (defn local
   "An Eff which uses `(f old-reader-value)` as the Reader value in `body`."
-  [f body]
-  (request-eff (Local. f body)))
+  [label f body]
+  (request-eff [label (Local. f body)]))
 
 (declare run)
 
-(defn- resume-reader [^Pair suspension] (run (.-snd suspension) (.-fst suspension)))
+(defn- resume [label ^Pair suspension] (run (.-fst suspension) label (.-snd suspension)))
 
 (defn run
   "Handle Reader effects in `eff` using `env` as the Reader value."
-  [eff env]
+  [eff label env]
   (loop [eff eff]
     (condp instance? eff
       Pure eff
       Impure (let [^Impure eff eff
-                   request (.-request eff)
+                   [request-label op] (.-request eff)
                    k (partial q/apply-queue (.-cont eff))]
-               (condp instance? request
-                 Ask (recur (k env))
-                 Local (mlet [:let [^Local request request]
-                              v (run (.-body request) ((.-f request) env))]
-                         (run (k v) env))
-                 (fell.core/weave eff (pair env nil) resume-reader))))))
+               (if (= request-label label)
+                 (condp instance? op
+                   Ask (recur (k env))
+                   Local (mlet [:let [^Local request op]
+                                v (run (.-body request) label ((.-f request) env))]
+                           (run (k v) label env)))
+                 (fell.core/weave eff (pair env nil) (partial resume label)))))))

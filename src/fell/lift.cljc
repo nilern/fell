@@ -14,27 +14,30 @@
 
 (defrecord Lift [lifted-mv]
   Effect
-  (weave [self cont suspension resume] (first-order-weave self cont suspension resume)))
+  (weave [_ labeled cont suspension resume] (first-order-weave labeled cont suspension resume)))
 
 (defn lift
   "Lift the monadic value `mv` into Eff."
-  [mv]
-  (request-eff (Lift. mv)))
+  [label mv]
+  (request-eff [label (Lift. mv)]))
 
 (declare run)
 
-(defn- resume-lift [^Pair suspension] (run (.-fst suspension) (.-snd suspension)))
+(defn- resume [label ^Pair suspension] (run (.-snd suspension) label (.-fst suspension)))
 
 (defn run
   "Handle the Lift effect in the Cats Monad determined by the [[cats.protocols.Context] `context`.
   All other effects must already be handled."
-  [context eff]
+  [eff label context]
   (condp instance? eff
     Pure (return context (extract eff))
     Impure (let [^Impure eff eff
-                 request (.-request eff)
+                 [request-label op] (.-request eff)
                  k (partial q/apply-queue (.-cont eff))]
-             (condp instance? request
-               Lift (-mbind context (.-lifted_mv ^Lift request) (cont/weave k (pair context nil) resume-lift))
+             (if (= request-label label)
+               (condp instance? op
+                 Lift (-mbind context
+                              (.-lifted_mv ^Lift op)
+                              (cont/weave k (pair context nil) (partial resume label))))
                (throw (#?(:clj RuntimeException., :cljs js/Error.)
                         (str "unhandled effect " (pr-str (.-request eff)))))))))

@@ -24,7 +24,8 @@
 (defn weave
   "Weave `suspension` and `resume` into the Impure Eff `eff`."
   [^Impure eff, suspension resume]
-  (eff/weave (.-request eff) (partial q/apply-queue (.-cont eff)) suspension resume))
+  (let [[_ op :as request] (.-request eff)]
+    (eff/weave op request (partial q/apply-queue (.-cont eff)) suspension resume)))
 
 (defn first-order-weave
   "Weave `suspension` and `resume` into the first order effect `request` and continuation fn `cont`."

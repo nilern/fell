@@ -18,7 +18,7 @@
 (alter-meta! #'FlatMap assoc :private true)
 
 (defprotocol Effect
-  (weave [self cont state handler]))
+  (weave [self labeled cont state handler]))
 
 (declare context)
 

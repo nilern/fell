@@ -11,60 +11,61 @@
 
 (defrecord Tell [message]
   Effect
-  (weave [self cont suspension resume] (first-order-weave self cont suspension resume)))
+  (weave [_ labeled cont suspension resume] (first-order-weave labeled cont suspension resume)))
 
 (defrecord Listen [body]
   Effect
-  (weave [_ cont suspension resume]
-    (impure (Listen. (resume (fmap (constantly suspension) body)))
+  (weave [_ [label] cont suspension resume]
+    (impure [label (Listen. (resume (fmap (constantly suspension) body)))]
             (comp resume (partial fmap cont)))))
 
 (defrecord Pass [body]
   Effect
-  (weave [_ cont suspension resume]
-    (impure (Pass. (resume (fmap (constantly suspension) body)))
+  (weave [_ [label] cont suspension resume]
+    (impure [label (Pass. (resume (fmap (constantly suspension) body)))]
             (q/singleton-queue (comp resume (partial fmap cont))))))
 
 (defn tell
   "An Eff which outputs `message`."
-  [message]
-  (request-eff (Tell. message)))
+  [label message]
+  (request-eff [label (Tell. message)]))
 
 (defn listen
   "An Eff that pairs the result value of `body` with the Writer output from `body`."
-  [body]
-  (request-eff (Listen. body)))
+  [label body]
+  (request-eff [label (Listen. body)]))
 
 (defn pass
   "An Eff which maps the first field of the [[cats.data.Pair]] result value of `body` over
   Writer messages from `body`."
-  [body]
-  (request-eff (Pass. body)))
+  [label body]
+  (request-eff [label (Pass. body)]))
 
 (declare resume run)
 
-(defn- resume* [output eff]
+(defn- resume* [label output eff]
   (condp instance? eff
     Pure (pure (pair output (extract eff)))
     Impure (let [^Impure eff eff
-                 request (.-request eff)
+                 [request-label op] (.-request eff)
                  k (partial q/apply-queue (.-cont eff))]
-             (condp instance? request
-               Tell (recur (mappend output (.-message ^Tell request)) (k nil))
-               Listen (mlet [^Pair result (run (ctx/infer output) (.-body ^Listen request))
-                             :let [output* (.-fst result)]]
-                        (resume* (mappend output output*) (k result)))
-               Pass (mlet [^Pair result (run (ctx/infer output) (.-body ^Pass request))
-                           :let [output* (.-fst result)
-                                 ^Pair vs (.-snd result)
-                                 f (.-fst vs)
-                                 v (.-snd vs)]]
-                      (resume* (mappend output (f output*)) (k v)))
-               (fell.core/weave eff (pair output nil) resume)))))
+             (if (= request-label label)
+               (condp instance? op
+                 Tell (recur label (mappend output (.-message ^Tell op)) (k nil))
+                 Listen (mlet [^Pair result (run (.-body ^Listen op) label (ctx/infer output))
+                               :let [output* (.-fst result)]]
+                          (resume* label (mappend output output*) (k result)))
+                 Pass (mlet [^Pair result (run (.-body ^Pass op) label (ctx/infer output))
+                             :let [output* (.-fst result)
+                                   ^Pair vs (.-snd result)
+                                   f (.-fst vs)
+                                   v (.-snd vs)]]
+                        (resume* label (mappend output (f output*)) (k v))))
+               (fell.core/weave eff (pair output nil) (partial resume label))))))
 
-(defn- resume [^Pair suspension] (resume* (.-fst suspension) (.-snd suspension)))
+(defn- resume [label ^Pair suspension] (resume* label (.-fst suspension) (.-snd suspension)))
 
 (defn run
   "Handle Writer effects in `body` using the Cats Monoid [[cats.protocols.Context]] `context`."
-  [context eff]
-  (resume* (mempty context) eff))
+  [eff label context]
+  (resume* label (mempty context) eff))

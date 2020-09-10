@@ -21,7 +21,7 @@
   (let [get (request-eff [label (Get.)])]
     (letfn [(set [value*] (request-eff [label (Set. value*)]))
 
-            (update [f] (-flat-map get (fn [s] (set (f s)))))
+            (update [f & args] (-flat-map get (fn [s] (set (apply f s args)))))
 
             (resume [^Pair suspension] (run (.-snd suspension) (.-fst suspension)))
 
